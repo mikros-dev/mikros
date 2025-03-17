@@ -3,8 +3,8 @@ package lifecycle
 import (
 	"context"
 
-	"github.com/somatech1/mikros/apis/lifecycle"
-	"github.com/somatech1/mikros/components/definition"
+	"github.com/mikros-dev/mikros/apis/lifecycle"
+	"github.com/mikros-dev/mikros/components/definition"
 )
 
 type LifecycleOptions struct {

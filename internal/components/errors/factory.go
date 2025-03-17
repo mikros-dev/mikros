@@ -3,8 +3,8 @@ package errors
 import (
 	"fmt"
 
-	errorsApi "github.com/somatech1/mikros/apis/errors"
-	loggerApi "github.com/somatech1/mikros/apis/logger"
+	errorsApi "github.com/mikros-dev/mikros/apis/errors"
+	loggerApi "github.com/mikros-dev/mikros/apis/logger"
 )
 
 type Factory struct {

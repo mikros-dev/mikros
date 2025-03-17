@@ -3,7 +3,7 @@ package errors
 import (
 	"context"
 
-	"github.com/somatech1/mikros/apis/logger"
+	"github.com/mikros-dev/mikros/apis/logger"
 )
 
 // Kind is an error representation of a mapped error.

@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/somatech1/mikros/components/definition"
-	"github.com/somatech1/mikros/components/env"
+	"github.com/mikros-dev/mikros/components/definition"
+	"github.com/mikros-dev/mikros/components/env"
 )
 
 const (

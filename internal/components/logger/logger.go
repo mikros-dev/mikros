@@ -11,8 +11,8 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	loggerApi "github.com/somatech1/mikros/apis/logger"
-	"github.com/somatech1/mikros/components/logger"
+	loggerApi "github.com/mikros-dev/mikros/apis/logger"
+	"github.com/mikros-dev/mikros/components/logger"
 )
 
 const (

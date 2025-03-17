@@ -3,12 +3,12 @@ package plugin
 import (
 	"context"
 
-	errorsApi "github.com/somatech1/mikros/apis/errors"
-	loggerApi "github.com/somatech1/mikros/apis/logger"
-	mcontext "github.com/somatech1/mikros/components/context"
-	"github.com/somatech1/mikros/components/definition"
-	"github.com/somatech1/mikros/components/service"
-	"github.com/somatech1/mikros/components/testing"
+	errorsApi "github.com/mikros-dev/mikros/apis/errors"
+	loggerApi "github.com/mikros-dev/mikros/apis/logger"
+	mcontext "github.com/mikros-dev/mikros/components/context"
+	"github.com/mikros-dev/mikros/components/definition"
+	"github.com/mikros-dev/mikros/components/service"
+	"github.com/mikros-dev/mikros/components/testing"
 )
 
 // Feature is a set of methods that all framework feature, internal or external,

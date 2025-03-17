@@ -12,17 +12,17 @@ import (
 	"github.com/lab259/cors"
 	"github.com/valyala/fasthttp"
 
-	"github.com/somatech1/mikros/apis/http_auth"
-	"github.com/somatech1/mikros/apis/http_cors"
-	"github.com/somatech1/mikros/apis/http_panic_recovery"
-	loggerApi "github.com/somatech1/mikros/apis/logger"
-	tracingApi "github.com/somatech1/mikros/apis/tracing"
-	trackerApi "github.com/somatech1/mikros/apis/tracker"
-	"github.com/somatech1/mikros/components/definition"
-	"github.com/somatech1/mikros/components/logger"
-	"github.com/somatech1/mikros/components/options"
-	"github.com/somatech1/mikros/components/plugin"
-	"github.com/somatech1/mikros/components/service"
+	"github.com/mikros-dev/mikros/apis/http_auth"
+	"github.com/mikros-dev/mikros/apis/http_cors"
+	"github.com/mikros-dev/mikros/apis/http_panic_recovery"
+	loggerApi "github.com/mikros-dev/mikros/apis/logger"
+	tracingApi "github.com/mikros-dev/mikros/apis/tracing"
+	trackerApi "github.com/mikros-dev/mikros/apis/tracker"
+	"github.com/mikros-dev/mikros/components/definition"
+	"github.com/mikros-dev/mikros/components/logger"
+	"github.com/mikros-dev/mikros/components/options"
+	"github.com/mikros-dev/mikros/components/plugin"
+	"github.com/mikros-dev/mikros/components/service"
 )
 
 type Server struct {

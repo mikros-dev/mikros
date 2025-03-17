@@ -3,12 +3,12 @@ package plugin
 import (
 	"context"
 
-	errorsApi "github.com/somatech1/mikros/apis/errors"
-	loggerApi "github.com/somatech1/mikros/apis/logger"
-	mcontext "github.com/somatech1/mikros/components/context"
-	"github.com/somatech1/mikros/components/definition"
-	"github.com/somatech1/mikros/components/options"
-	"github.com/somatech1/mikros/components/service"
+	errorsApi "github.com/mikros-dev/mikros/apis/errors"
+	loggerApi "github.com/mikros-dev/mikros/apis/logger"
+	mcontext "github.com/mikros-dev/mikros/components/context"
+	"github.com/mikros-dev/mikros/components/definition"
+	"github.com/mikros-dev/mikros/components/options"
+	"github.com/mikros-dev/mikros/components/service"
 )
 
 // Service is an internal package behavior that all supported service types must

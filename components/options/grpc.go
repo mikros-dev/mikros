@@ -6,8 +6,8 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/somatech1/mikros/components/definition"
-	"github.com/somatech1/mikros/components/service"
+	"github.com/mikros-dev/mikros/components/definition"
+	"github.com/mikros-dev/mikros/components/service"
 )
 
 // GrpcServiceOptions gathers options to initialize a gRPC service.

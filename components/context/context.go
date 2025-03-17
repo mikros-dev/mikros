@@ -8,7 +8,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"google.golang.org/grpc/metadata"
 
-	"github.com/somatech1/mikros/components/service"
+	"github.com/mikros-dev/mikros/components/service"
 )
 
 const (

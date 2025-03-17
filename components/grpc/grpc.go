@@ -8,10 +8,10 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 
-	trackerApi "github.com/somatech1/mikros/apis/tracker"
-	mcontext "github.com/somatech1/mikros/components/context"
-	"github.com/somatech1/mikros/components/service"
-	merrors "github.com/somatech1/mikros/internal/components/errors"
+	trackerApi "github.com/mikros-dev/mikros/apis/tracker"
+	mcontext "github.com/mikros-dev/mikros/components/context"
+	"github.com/mikros-dev/mikros/components/service"
+	merrors "github.com/mikros-dev/mikros/internal/components/errors"
 )
 
 // ClientConnectionOptions gathers custom options to establish a connection with
