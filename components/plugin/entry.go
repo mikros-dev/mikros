@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	errorsApi "github.com/somatech1/mikros/apis/errors"
-	loggerApi "github.com/somatech1/mikros/apis/logger"
-	"github.com/somatech1/mikros/components/logger"
+	errorsApi "github.com/mikros-dev/mikros/apis/errors"
+	loggerApi "github.com/mikros-dev/mikros/apis/logger"
+	"github.com/mikros-dev/mikros/components/logger"
 )
 
 // Entry is a member that all framework feature must have declared inside of

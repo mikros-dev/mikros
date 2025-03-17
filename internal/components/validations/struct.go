@@ -14,7 +14,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/somatech1/mikros/internal/components/tags"
+	"github.com/mikros-dev/mikros/internal/components/tags"
 )
 
 // EnsureValuesAreInitialized certifies that all members of a struct v have

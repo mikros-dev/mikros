@@ -47,8 +47,8 @@ package main
 import (
     "context"
 
-    "github.com/somatech1/mikros"
-    "github.com/somatech1/mikros/components/options"
+    "github.com/mikros-dev/mikros"
+    "github.com/mikros-dev/mikros/components/options"
 )
 
 // service is a structure that will hold all required data and information

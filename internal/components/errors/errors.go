@@ -8,10 +8,10 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	errorsApi "github.com/somatech1/mikros/apis/errors"
-	loggerApi "github.com/somatech1/mikros/apis/logger"
-	"github.com/somatech1/mikros/components/logger"
-	"github.com/somatech1/mikros/components/service"
+	errorsApi "github.com/mikros-dev/mikros/apis/errors"
+	loggerApi "github.com/mikros-dev/mikros/apis/logger"
+	"github.com/mikros-dev/mikros/components/logger"
+	"github.com/mikros-dev/mikros/components/service"
 )
 
 // ServiceError is a structure that holds internal error details to improve

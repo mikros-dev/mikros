@@ -3,8 +3,8 @@ package errors
 import (
 	"errors"
 
-	errorsApi "github.com/somatech1/mikros/apis/errors"
-	merrors "github.com/somatech1/mikros/internal/components/errors"
+	errorsApi "github.com/mikros-dev/mikros/apis/errors"
+	merrors "github.com/mikros-dev/mikros/internal/components/errors"
 )
 
 // IsInternalError checks if an error is a framework Internal error.

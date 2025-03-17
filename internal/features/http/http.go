@@ -6,9 +6,9 @@ import (
 
 	"github.com/valyala/fasthttp"
 
-	loggerApi "github.com/somatech1/mikros/apis/logger"
-	"github.com/somatech1/mikros/components/definition"
-	"github.com/somatech1/mikros/components/plugin"
+	loggerApi "github.com/mikros-dev/mikros/apis/logger"
+	"github.com/mikros-dev/mikros/components/definition"
+	"github.com/mikros-dev/mikros/components/plugin"
 )
 
 type Client struct {

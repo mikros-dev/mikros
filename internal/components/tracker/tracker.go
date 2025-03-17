@@ -3,9 +3,9 @@ package tracker
 import (
 	"strings"
 
-	trackerApi "github.com/somatech1/mikros/apis/tracker"
-	"github.com/somatech1/mikros/components/options"
-	"github.com/somatech1/mikros/components/plugin"
+	trackerApi "github.com/mikros-dev/mikros/apis/tracker"
+	"github.com/mikros-dev/mikros/components/options"
+	"github.com/mikros-dev/mikros/components/plugin"
 )
 
 type Tracker struct {

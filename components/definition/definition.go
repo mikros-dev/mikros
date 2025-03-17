@@ -9,7 +9,7 @@ import (
 	"github.com/creasty/defaults"
 	"github.com/go-playground/validator/v10"
 
-	"github.com/somatech1/mikros/components/service"
+	"github.com/mikros-dev/mikros/components/service"
 )
 
 // Definitions is a structure representation of a 'service.toml' file. It holds
