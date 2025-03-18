@@ -6,6 +6,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/encoding/gzip"
 	"google.golang.org/grpc/status"
 
 	trackerApi "github.com/mikros-dev/mikros/apis/tracker"
@@ -70,6 +71,9 @@ func getClientConnectionAddress(options *ClientConnectionOptions) string {
 
 func gRPCClientUnaryInterceptor(svcCtx *mcontext.ServiceContext, tracker trackerApi.Tracker, from, to service.Name) grpc.UnaryClientInterceptor {
 	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+		// Add gzip compression to the request.
+		opts = append(opts, grpc.UseCompressor(gzip.Name))
+
 		if tracker != nil {
 			trackId := tracker.Generate()
 
