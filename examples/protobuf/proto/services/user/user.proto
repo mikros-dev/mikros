@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package services.user;
+
+option go_package = "github.com/somatech1/mikros/protobuf-examples/gen/go/services/user;user";
+
+import "services/common/common.proto";
+
+message UserWire {
+  string id = 1;
+  string name = 2;
+  common.Status status = 3;
+  string email = 4;
+  int32 age = 5;
+}

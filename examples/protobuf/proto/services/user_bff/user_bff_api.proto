@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package services.user_bff;
+
+option go_package = "github.com/somatech1/mikros/protobuf-examples/gen/go/services/user_bff;user_bff";
+
+import "google/api/annotations.proto";
+import "services/user/user.proto";
+
+service UserBffService {
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse) {
+    option (google.api.http) = {
+      post: "/user-bff/v1/users/{name}"
+      body: "email"
+    };
+  }
+}
+
+message CreateUserRequest {
+  string name = 1;
+  string email = 2;
+  int32 age = 3;
+  bool debug = 4;
+}
+
+message CreateUserResponse {
+  user.UserWire user = 1;
+}

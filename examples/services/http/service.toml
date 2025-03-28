@@ -1,0 +1,5 @@
+name = "user-bff"
+version = "v0.1.0"
+types = ["http"]
+language = "go"
+product = "examples"

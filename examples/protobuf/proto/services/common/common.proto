@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package services.common;
+
+option go_package = "github.com/somatech1/mikros/protobuf-examples/gen/go/services/common;common";
+
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  STATUS_ACTIVE = 1;
+  STATUS_INACTIVE = 2;
+  STATUS_SUSPENDED = 3;
+}
+
+enum EntityFeatures {
+  ENTITY_FEATURES_UNSPECIFIED = 0;
+  ENTITY_FEATURES_DATABASE_SYNCED = 1;
+}
+
+message PaginationRequestWire {
+  int32 size = 1;
+  int32 limit = 2;
+}
