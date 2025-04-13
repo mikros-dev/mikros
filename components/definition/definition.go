@@ -1,15 +1,19 @@
 package definition
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
+	"github.com/BurntSushi/toml"
 	"github.com/creasty/defaults"
 	"github.com/go-playground/validator/v10"
 
 	"github.com/mikros-dev/mikros/components/service"
+	"github.com/mikros-dev/mikros/internal/components/tags"
 )
 
 // Definitions is a structure representation of a 'service.toml' file. It holds
@@ -258,4 +262,42 @@ func (d *Definitions) ExternalServiceDefinitions(name string) (ExternalServiceEn
 func (d *Definitions) LoadService(serviceType ServiceType) (map[string]interface{}, bool) {
 	dd, ok := d.Services[serviceType.String()]
 	return dd, ok
+}
+
+// LoadCustomServiceDefinitions loads the [service] object directly inside the
+// service member tagged with "definitions".
+func (d *Definitions) LoadCustomServiceDefinitions(srv interface{}) error {
+	var (
+		v = reflect.ValueOf(srv).Elem()
+		t = v.Type()
+	)
+
+	for i := 0; i < t.NumField(); i++ {
+		var (
+			buf      bytes.Buffer
+			field    = t.Field(i)
+			fieldTag = tags.ParseTag(field.Tag)
+		)
+
+		if fieldTag.IsDefinitions {
+			// Serialize service settings back into TOML for us
+			if err := toml.NewEncoder(&buf).Encode(d.Service); err != nil {
+				return err
+			}
+
+			fieldVal := v.Field(i)
+			if fieldVal.IsNil() {
+				fieldVal.Set(reflect.New(field.Type.Elem()))
+			}
+
+			// Decode TOML into the custom service structure
+			if _, err := toml.Decode(buf.String(), fieldVal.Interface()); err != nil {
+				return err
+			}
+
+			break
+		}
+	}
+
+	return nil
 }
