@@ -279,6 +279,10 @@ func (d *Definitions) LoadCustomServiceDefinitions(srv interface{}) error {
 			fieldTag = tags.ParseTag(field.Tag)
 		)
 
+		if fieldTag == nil {
+			continue
+		}
+
 		if fieldTag.IsDefinitions {
 			// Serialize service settings back into TOML for us
 			if err := toml.NewEncoder(&buf).Encode(d.Service); err != nil {
