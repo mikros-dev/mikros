@@ -226,7 +226,7 @@ func (s *Service) Start(srv interface{}) {
 func (s *Service) start(ctx context.Context, srv interface{}) *merrors.AbortError {
 	s.logger.Info(ctx, "starting service")
 
-	if err := s.validateDefinitions(); err != nil {
+	if err := s.postProcessDefinitions(srv); err != nil {
 		return merrors.NewAbortError("service definitions error", err)
 	}
 
@@ -250,12 +250,11 @@ func (s *Service) start(ctx context.Context, srv interface{}) *merrors.AbortErro
 	return nil
 }
 
-// validateDefinitions is responsible for validating the 'service.toml' file
-// content.
-//
-// It also adds all features and services (internal and external) settings into
-// the service definitions before validating it.
-func (s *Service) validateDefinitions() error {
+// postProcessDefinitions is responsible loading additional definitions for
+// the service. Also, here is where we initialize the service structure member
+// tagged as "definitions".
+func (s *Service) postProcessDefinitions(srv interface{}) error {
+	// Load all feature definitions.
 	iter := s.features.Iterator()
 	for p, next := iter.Next(); next; p, next = iter.Next() {
 		if cfg, ok := p.(plugin.FeatureSettings); ok {
@@ -268,6 +267,7 @@ func (s *Service) validateDefinitions() error {
 		}
 	}
 
+	// Load definitions from all service TOML types and let them available.
 	for _, svc := range s.services.Services() {
 		if d, ok := svc.(plugin.ServiceSettings); ok {
 			defs, err := d.Definitions(s.serviceToml)
@@ -279,6 +279,12 @@ func (s *Service) validateDefinitions() error {
 		}
 	}
 
+	// Load custom service definitions
+	if err := s.definitions.LoadCustomServiceDefinitions(srv); err != nil {
+		return err
+	}
+
+	// Ensure that everything is right
 	return s.definitions.Validate()
 }
 
@@ -765,6 +771,10 @@ func (s *Service) SetupTest(ctx context.Context, t *testing.Testing) *ServiceTes
 //
 // Note that these settings correspond to everything under the [service]
 // object inside the TOML file.
+//
+// Deprecated: This method is deprecated and should not be used anymore. In
+// order to load custom service definitions, use the tag `mikros:"definitions"`
+// with a structure member inside the service.
 func (s *Service) CustomDefinitions() map[string]interface{} {
 	return s.definitions.Service
 }
