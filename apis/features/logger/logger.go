@@ -4,9 +4,9 @@ import (
 	"context"
 )
 
-// Logger is the log interface that is available for all services to show
+// LoggerAPI is the log interface that is available for all services to show
 // messages using different levels.
-type Logger interface {
+type LoggerAPI interface {
 	// Debug outputs messages using debug level.
 	Debug(ctx context.Context, msg string, attrs ...Attribute)
 

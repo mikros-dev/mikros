@@ -3,8 +3,9 @@ package plugin
 import (
 	"context"
 
-	errorsApi "github.com/mikros-dev/mikros/apis/errors"
-	loggerApi "github.com/mikros-dev/mikros/apis/logger"
+	fenv "github.com/mikros-dev/mikros/apis/features/env"
+	ferrors "github.com/mikros-dev/mikros/apis/features/errors"
+	flogger "github.com/mikros-dev/mikros/apis/features/logger"
 	mcontext "github.com/mikros-dev/mikros/components/context"
 	"github.com/mikros-dev/mikros/components/definition"
 	"github.com/mikros-dev/mikros/components/service"
@@ -25,7 +26,7 @@ type Feature interface {
 
 	// Fields should return informative fields to be logged at the beginning
 	// of the execution.
-	Fields() []loggerApi.Attribute
+	Fields() []flogger.Attribute
 
 	// FeatureEntry is a set of methods that must provide information related
 	// to the feature itself.
@@ -51,8 +52,8 @@ type FeatureEntry interface {
 type UpdateInfoEntry struct {
 	Enabled bool
 	Name    string
-	Logger  loggerApi.Logger
-	Errors  errorsApi.ErrorFactory
+	Logger  flogger.LoggerAPI
+	Errors  ferrors.ErrorAPI
 }
 
 // FeatureController is an optional behavior that a feature may have if it needs
@@ -124,12 +125,12 @@ type CanBeInitializedOptions struct {
 // InitializeOptions gathers all information passed to the Initialize method of
 // a Feature interface, allowing a feature to be properly initialized.
 type InitializeOptions struct {
-	Logger          loggerApi.Logger
-	Errors          errorsApi.ErrorFactory
+	Logger          flogger.LoggerAPI
+	Errors          ferrors.ErrorAPI
+	Env             fenv.EnvAPI
 	Definitions     *definition.Definitions
 	Tags            map[string]string
 	ServiceContext  *mcontext.ServiceContext
 	Dependencies    map[string]Feature
 	RunTimeFeatures map[string]interface{}
-	Env             Env
 }

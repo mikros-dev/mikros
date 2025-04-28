@@ -3,18 +3,17 @@ package mikros
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"syscall"
 
-	errorsApi "github.com/mikros-dev/mikros/apis/errors"
-	loggerApi "github.com/mikros-dev/mikros/apis/logger"
+	"github.com/mikros-dev/mikros/apis/behavior"
+	ferrors "github.com/mikros-dev/mikros/apis/features/errors"
+	flogger "github.com/mikros-dev/mikros/apis/features/logger"
 	mcontext "github.com/mikros-dev/mikros/components/context"
 	"github.com/mikros-dev/mikros/components/definition"
 	mgrpc "github.com/mikros-dev/mikros/components/grpc"
@@ -23,17 +22,15 @@ import (
 	"github.com/mikros-dev/mikros/components/plugin"
 	"github.com/mikros-dev/mikros/components/service"
 	"github.com/mikros-dev/mikros/components/testing"
+	"github.com/mikros-dev/mikros/internal/components/env"
 	merrors "github.com/mikros-dev/mikros/internal/components/errors"
 	"github.com/mikros-dev/mikros/internal/components/lifecycle"
 	mlogger "github.com/mikros-dev/mikros/internal/components/logger"
 	"github.com/mikros-dev/mikros/internal/components/tags"
 	"github.com/mikros-dev/mikros/internal/components/tracker"
 	"github.com/mikros-dev/mikros/internal/components/validations"
-	httpFeature "github.com/mikros-dev/mikros/internal/features/http"
-	"github.com/mikros-dev/mikros/internal/services/grpc"
-	"github.com/mikros-dev/mikros/internal/services/http"
-	"github.com/mikros-dev/mikros/internal/services/native"
-	"github.com/mikros-dev/mikros/internal/services/script"
+	"github.com/mikros-dev/mikros/internal/features"
+	"github.com/mikros-dev/mikros/internal/services"
 )
 
 // Service is the object which represents a service application.
@@ -47,7 +44,7 @@ type Service struct {
 	servers         []plugin.Service
 	clients         map[string]*options.GrpcClient
 	definitions     *definition.Definitions
-	envs            *Env
+	envs            *env.ServiceEnvs
 	features        *plugin.FeatureSet
 	services        *plugin.ServiceSet
 	tracker         *tracker.Tracker
@@ -79,31 +76,26 @@ func NewService(opt *options.NewServiceOptions) *Service {
 // initService parses the service.toml file and creates the Service object
 // initializing its main fields.
 func initService(opt *options.NewServiceOptions) (*Service, error) {
-	path, err := getServiceTomlPath()
-	if err != nil {
-		return nil, err
-	}
-
-	defs, err := definition.Parse(path)
+	defs, err := definition.Parse()
 	if err != nil {
 		return nil, err
 	}
 
 	// Loads environment variables
-	envs, err := loadEnvs(defs)
+	envs, err := env.NewServiceEnvs(defs)
 	if err != nil {
 		return nil, err
 	}
 
 	// Initialize the service logger system.
 	serviceLogger := mlogger.New(mlogger.Options{
-		LogOnlyFatalLevel:      envs.DeploymentEnv == definition.ServiceDeploy_Test,
+		LogOnlyFatalLevel:      envs.DeploymentEnv() == definition.ServiceDeploy_Test,
 		DisableErrorStacktrace: !defs.Log.ErrorStacktrace,
 		FixedAttributes: map[string]string{
 			"service.name":    defs.ServiceName().String(),
 			"service.type":    defs.ServiceTypesAsString(),
 			"service.version": defs.Version,
-			"service.env":     envs.DeploymentEnv.String(),
+			"service.env":     envs.DeploymentEnv().String(),
 			"service.product": defs.Product,
 		},
 	})
@@ -123,61 +115,21 @@ func initService(opt *options.NewServiceOptions) (*Service, error) {
 	}
 
 	return &Service{
-		logger:          serviceLogger,
-		errors:          initServiceErrors(defs, serviceLogger),
-		clients:         opt.GrpcClients,
-		envs:            envs,
-		definitions:     defs,
-		runtimeFeatures: opt.RunTimeFeatures,
+		serviceToml:     defs.Path(),
 		serviceOptions:  opt.Service,
+		runtimeFeatures: opt.RunTimeFeatures,
+		errors:          initServiceErrors(defs, serviceLogger),
+		logger:          serviceLogger,
 		ctx:             ctx,
-		serviceToml:     path,
-		features:        registerInternalFeatures(),
-		services:        registerInternalServices(),
+		clients:         opt.GrpcClients,
+		definitions:     defs,
+		envs:            envs,
+		features:        features.Features(),
+		services:        services.Services(),
 	}, nil
 }
 
-func getServiceTomlPath() (string, error) {
-	path := flag.String("config", "", "Sets the alternative path for 'service.toml' file.")
-	flag.Parse()
-
-	if path != nil && *path != "" {
-		return *path, nil
-	}
-
-	serviceDir, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-
-	return filepath.Join(serviceDir, "service.toml"), nil
-}
-
-// loadEnvs loads the framework main environment variables through the env
-// feature plugin.
-func loadEnvs(defs *definition.Definitions) (*Env, error) {
-	return newEnv(defs)
-}
-
-func registerInternalFeatures() *plugin.FeatureSet {
-	features := plugin.NewFeatureSet()
-	features.Register(options.HttpFeatureName, httpFeature.New())
-
-	return features
-}
-
-func registerInternalServices() *plugin.ServiceSet {
-	services := plugin.NewServiceSet()
-
-	services.Register(grpc.New())
-	services.Register(http.New())
-	services.Register(native.New())
-	services.Register(script.New())
-
-	return services
-}
-
-func initServiceErrors(defs *definition.Definitions, log loggerApi.Logger) *merrors.Factory {
+func initServiceErrors(defs *definition.Definitions, log flogger.LoggerAPI) *merrors.Factory {
 	return merrors.NewFactory(merrors.FactoryOptions{
 		ServiceName: defs.ServiceName().String(),
 		Logger:      log,
@@ -216,7 +168,7 @@ func (s *Service) Start(srv interface{}) {
 
 	// If we're running tests, we end the method here to avoid putting the
 	// service in execution.
-	if s.DeployEnvironment() == definition.ServiceDeploy_Test {
+	if s.envs.DeploymentEnv() == definition.ServiceDeploy_Test {
 		return
 	}
 
@@ -250,7 +202,7 @@ func (s *Service) start(ctx context.Context, srv interface{}) *merrors.AbortErro
 	return nil
 }
 
-// postProcessDefinitions is responsible loading additional definitions for
+// postProcessDefinitions is responsible for loading additional definitions for
 // the service. Also, here is where we initialize the service structure member
 // tagged as "definitions".
 func (s *Service) postProcessDefinitions(srv interface{}) error {
@@ -309,7 +261,7 @@ func (s *Service) initializeFeatures(ctx context.Context, srv interface{}) error
 		Tags:            s.tags(),
 		ServiceContext:  s.ctx,
 		RunTimeFeatures: s.runtimeFeatures,
-		Env:             s.envs.ToMapEnv(),
+		Env:             s.envs,
 	}
 
 	// Initialize registered features
@@ -373,7 +325,7 @@ func (s *Service) setupLoggerExtractor() error {
 	}
 
 	if api, ok := e.(plugin.FeatureInternalAPI); ok {
-		extractor := api.(loggerApi.Extractor)
+		extractor := api.(behavior.LoggerExtractor)
 		s.logger.SetContextFieldExtractor(extractor.Extract)
 	}
 
@@ -399,13 +351,13 @@ func (s *Service) initializeServiceInternals(ctx context.Context, srv interface{
 	// everything declared inside the main struct service is initialized to
 	// be used inside the callback.
 	if err := lifecycle.OnStart(srv, ctx, &lifecycle.LifecycleOptions{
-		Env:            s.DeployEnvironment(),
+		Env:            s.envs.DeploymentEnv(),
 		ExecuteOnTests: s.definitions.Tests.ExecuteLifecycle,
 	}); err != nil {
 		return merrors.NewAbortError("failed while running lifecycle.OnStart", err)
 	}
 
-	if s.envs.DeploymentEnv != definition.ServiceDeploy_Test {
+	if s.envs.DeploymentEnv() != definition.ServiceDeploy_Test {
 		if err := validations.EnsureValuesAreInitialized(srv); err != nil {
 			return merrors.NewAbortError("service server object is not properly initialized", err)
 		}
@@ -447,11 +399,11 @@ func (s *Service) initializeRegisteredServices(ctx context.Context, srv interfac
 		// Use default port values in case no port was set in the service.toml
 		if port == 0 {
 			if serviceType == definition.ServiceType_gRPC.String() {
-				return service.ServerPort(s.envs.GrpcPort)
+				return service.ServerPort(s.envs.GrpcPort())
 			}
 
 			if serviceType == definition.ServiceType_HTTP.String() {
-				return service.ServerPort(s.envs.HttpPort)
+				return service.ServerPort(s.envs.HttpPort())
 			}
 		}
 
@@ -483,7 +435,7 @@ func (s *Service) initializeRegisteredServices(ctx context.Context, srv interfac
 			Definitions:    s.definitions,
 			Features:       s.features,
 			ServiceHandler: srv,
-			Env:            s.envs.ToMapEnv(),
+			Env:            s.envs,
 		}); err != nil {
 			return err
 		}
@@ -500,7 +452,7 @@ func (s *Service) initializeRegisteredServices(ctx context.Context, srv interfac
 func (s *Service) coupleClients(srv interface{}) error {
 	// If the service does not have dependencies, or we are running tests,
 	// don't need to continue.
-	if len(s.clients) == 0 || s.envs.DeploymentEnv == definition.ServiceDeploy_Test {
+	if len(s.clients) == 0 || s.envs.DeploymentEnv() == definition.ServiceDeploy_Test {
 		return nil
 	}
 
@@ -536,8 +488,8 @@ func (s *Service) coupleClients(srv interface{}) error {
 				ClientName:  client.ServiceName,
 				Context:     s.ctx,
 				Connection: mgrpc.ConnectionOptions{
-					Namespace: s.envs.CoupledNamespace,
-					Port:      s.envs.CoupledPort,
+					Namespace: s.envs.CoupledNamespace(),
+					Port:      s.envs.CoupledPort(),
 				},
 				Tracker: serviceTracker,
 			}
@@ -570,7 +522,7 @@ func (s *Service) coupleClients(srv interface{}) error {
 
 func (s *Service) printServiceResources(ctx context.Context) {
 	var (
-		fields []loggerApi.Attribute
+		fields []flogger.Attribute
 		iter   = s.features.Iterator()
 	)
 
@@ -584,7 +536,7 @@ func (s *Service) printServiceResources(ctx context.Context) {
 func (s *Service) run(ctx context.Context, srv interface{}) {
 	defer s.stopService(ctx)
 	defer lifecycle.OnFinish(srv, ctx, &lifecycle.LifecycleOptions{
-		Env:            s.DeployEnvironment(),
+		Env:            s.envs.DeploymentEnv(),
 		ExecuteOnTests: s.definitions.Tests.ExecuteLifecycle,
 	})
 
@@ -637,11 +589,11 @@ func (s *Service) stopService(ctx context.Context) {
 	for _, svc := range s.servers {
 		if err := svc.Stop(ctx); err != nil {
 			s.logger.Error(ctx, "could not stop service server",
-				append([]loggerApi.Attribute{logger.Error(err)}, svc.Info()...)...)
+				append([]flogger.Attribute{logger.Error(err)}, svc.Info()...)...)
 		}
 	}
 
-	s.Logger().Info(ctx, "service stopped")
+	s.logger.Info(ctx, "service stopped")
 }
 
 // stopDependentServices stops other services that are running along with the
@@ -657,12 +609,20 @@ func (s *Service) stopDependentServices(ctx context.Context) error {
 }
 
 // Logger gives access to the logger API from inside a service context.
-func (s *Service) Logger() loggerApi.Logger {
+//
+// Deprecated: This method is deprecated and should not be used anymore. In
+// order to access the log API one must declare an internal service feature
+// and initialize it using struct tags.
+func (s *Service) Logger() flogger.LoggerAPI {
 	return s.logger
 }
 
 // Errors gives access to the errors API from inside a service context.
-func (s *Service) Errors() errorsApi.ErrorFactory {
+//
+// Deprecated: This method is deprecated and should not be used anymore. In
+// order to access the error API one must declare an internal service feature
+// and initialize it using struct tags.
+func (s *Service) Errors() ferrors.ErrorAPI {
 	return s.errors
 }
 
@@ -679,13 +639,21 @@ func (s *Service) abort(ctx context.Context, err *merrors.AbortError) {
 }
 
 // ServiceName gives back the service name.
+//
+// Deprecated: This method is deprecated and should not be used anymore. In
+// order to know the current service name, one must declare an internal
+// service feature for the definitions and initialize it using struct tags.
 func (s *Service) ServiceName() string {
 	return s.definitions.ServiceName().String()
 }
 
 // DeployEnvironment exposes the current service deploymentEnv environment.
+//
+// Deprecated: This method is deprecated and should not be used anymore. In
+// order to know this information, one must declare an internal service
+// feature for the environment variables and initialize it using struct tags.
 func (s *Service) DeployEnvironment() definition.ServiceDeploy {
-	return s.envs.DeploymentEnv
+	return s.envs.DeploymentEnv()
 }
 
 // tags gives a map of current service tags to be used with external resources.
@@ -698,7 +666,7 @@ func (s *Service) tags() map[string]string {
 	}
 
 	return map[string]string{
-		"service.name":    s.ServiceName(),
+		"service.name":    s.definitions.ServiceName().String(),
 		"service.type":    serviceType,
 		"service.version": s.definitions.Version,
 		"service.product": s.definitions.Product,
@@ -709,7 +677,7 @@ func (s *Service) tags() map[string]string {
 // public API.
 func (s *Service) Feature(ctx context.Context, target interface{}) error {
 	if reflect.TypeOf(target).Kind() != reflect.Ptr {
-		return s.Errors().Internal(errors.New("requested target API must be a pointer")).
+		return s.errors.Internal(errors.New("requested target API must be a pointer")).
 			Submit(ctx)
 	}
 
@@ -721,16 +689,13 @@ func (s *Service) Feature(ctx context.Context, target interface{}) error {
 		}
 
 		f := reflect.ValueOf(feature)
-
-		// If we are running unit tests we search for the plugin.FeatureExternalAPI
-		// implementation, to load and use feature mocks rather than the real one.
-		if s.DeployEnvironment() == definition.ServiceDeploy_Test {
-			if externalApi, ok := feature.(plugin.FeatureExternalAPI); ok {
-				// If the feature has implemented the plugin.FeatureExternalAPI,
-				// we give priority for it, trying to check if its returned
-				// interface{} has the desired target interface.
-				f = reflect.ValueOf(externalApi.ServiceAPI())
-			}
+		if externalApi, ok := feature.(plugin.FeatureExternalAPI); ok {
+			// If the feature has implemented the plugin.FeatureExternalAPI,
+			// we give priority for it, trying to check if its returned
+			// interface{} has the desired target interface. This way we let the
+			// feature decide if it is going to implement its public interface
+			// itself or of it will return something that implements.
+			f = reflect.ValueOf(externalApi.ServiceAPI())
 		}
 
 		var (
@@ -744,11 +709,15 @@ func (s *Service) Feature(ctx context.Context, target interface{}) error {
 		}
 	}
 
-	return s.Errors().Internal(errors.New("could not find feature that supports this requested API")).
+	return s.errors.Internal(errors.New("could not find feature that supports this requested API")).
 		Submit(ctx)
 }
 
 // Env gives access to the framework environment variables public API.
+//
+// Deprecated: This method is deprecated and should not be used anymore. In
+// order to load environment variable values one must declare an internal service feature
+// and initialize it using struct tags.
 func (s *Service) Env(name string) string {
 	v, ok := s.envs.DefinedEnv(name)
 	if !ok {

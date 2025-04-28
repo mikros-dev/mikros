@@ -6,7 +6,7 @@ import (
 
 	"github.com/valyala/fasthttp"
 
-	loggerApi "github.com/mikros-dev/mikros/apis/logger"
+	flogger "github.com/mikros-dev/mikros/apis/features/logger"
 	"github.com/mikros-dev/mikros/components/definition"
 	"github.com/mikros-dev/mikros/components/plugin"
 )
@@ -50,6 +50,6 @@ func (c *Client) SetResponseCode(ctx context.Context, code int) {
 	}
 }
 
-func (c *Client) Fields() []loggerApi.Attribute {
-	return []loggerApi.Attribute{}
+func (c *Client) Fields() []flogger.Attribute {
+	return []flogger.Attribute{}
 }

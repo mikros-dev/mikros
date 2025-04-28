@@ -4,9 +4,9 @@ import (
 	"context"
 )
 
-// ServiceAPI corresponds to the API that a native service must implement in
+// NativeAPI corresponds to the API that a native service must implement in
 // its main structure.
-type ServiceAPI interface {
+type NativeAPI interface {
 	// Start must put the service in execution. It can block and wait for some
 	// signal to finish, which should be done in the Stop call. If it needs
 	// a loop, i.e., execute forever, it must be done at the service level.

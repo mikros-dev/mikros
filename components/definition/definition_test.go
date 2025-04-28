@@ -190,7 +190,7 @@ port = 9192
 			_, _ = tmpFile.Write([]byte(test.TomlDefinitions))
 			_ = tmpFile.Close()
 
-			defs, _ := Parse(tmpFile.Name())
+			defs, _ := parse(tmpFile.Name())
 			err := defs.Validate()
 
 			if test.DefsAssertion != nil {

@@ -4,9 +4,9 @@ import (
 	"context"
 )
 
-// ServiceAPI corresponds to the API that a script service must implement in
+// ScriptApi corresponds to the API that a script service must implement in
 // its main structure.
-type ServiceAPI interface {
+type ScriptApi interface {
 	// Run must be the service function where things happen. It is executed
 	// only once and the service terminates.
 	//

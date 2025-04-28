@@ -3,7 +3,6 @@ package lifecycle
 import (
 	"context"
 
-	"github.com/mikros-dev/mikros/apis/lifecycle"
 	"github.com/mikros-dev/mikros/components/definition"
 )
 
@@ -17,7 +16,7 @@ func OnStart(s interface{}, ctx context.Context, opt *LifecycleOptions) error {
 		return nil
 	}
 
-	if l, ok := s.(lifecycle.ServiceLifecycleStarter); ok {
+	if l, ok := s.(ServiceLifecycleStarter); ok {
 		return l.OnStart(ctx)
 	}
 
@@ -29,7 +28,7 @@ func OnFinish(s interface{}, ctx context.Context, opt *LifecycleOptions) {
 		return
 	}
 
-	if l, ok := s.(lifecycle.ServiceLifecycleFinisher); ok {
+	if l, ok := s.(ServiceLifecycleFinisher); ok {
 		l.OnFinish(ctx)
 	}
 }

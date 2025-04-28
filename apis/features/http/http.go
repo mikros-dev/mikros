@@ -4,7 +4,7 @@ import (
 	"context"
 )
 
-type ServiceAPI interface {
+type HttpServerAPI interface {
 	// AddResponseHeader adds a new header entry for the handler's response.
 	AddResponseHeader(ctx context.Context, key, value string)
 

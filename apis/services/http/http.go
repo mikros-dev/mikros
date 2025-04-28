@@ -6,9 +6,9 @@ import (
 	"github.com/fasthttp/router"
 )
 
-// HttpServer is the behaviour that a service must implement to be accepted as
+// HttpServerAPI is the behaviour that a service must implement to be accepted as
 // a valid framework HTTP service.
-type HttpServer interface {
+type HttpServerAPI interface {
 	// SetupServer is the place where a service can adjust and initialize
 	// everything it requires to successfully initialize the HTTP server later.
 	SetupServer(

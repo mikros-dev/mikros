@@ -6,7 +6,10 @@ const (
 
 	// Internal features
 
-	HttpFeatureName = FeatureNamePrefix + "http"
+	HttpFeatureName       = FeatureNamePrefix + "http"
+	LoggerFeatureName     = FeatureNamePrefix + "logger"
+	ErrorsFeatureName     = FeatureNamePrefix + "errors"
+	DefinitionFeatureName = FeatureNamePrefix + "definition"
 
 	// These HTTP features plugins don't exist here, but to be supported by
 	// internal services, they must have these names.
