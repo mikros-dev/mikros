@@ -350,7 +350,7 @@ func (s *Service) initializeServiceInternals(ctx context.Context, srv interface{
 	// allow its fields to be initialized at this point. Also, ensures that
 	// everything declared inside the main struct service is initialized to
 	// be used inside the callback.
-	if err := lifecycle.OnStart(srv, ctx, &lifecycle.LifecycleOptions{
+	if err := lifecycle.OnStart(ctx, srv, s, &lifecycle.LifecycleOptions{
 		Env:            s.envs.DeploymentEnv(),
 		ExecuteOnTests: s.definitions.Tests.ExecuteLifecycle,
 	}); err != nil {
@@ -535,7 +535,7 @@ func (s *Service) printServiceResources(ctx context.Context) {
 
 func (s *Service) run(ctx context.Context, srv interface{}) {
 	defer s.stopService(ctx)
-	defer lifecycle.OnFinish(srv, ctx, &lifecycle.LifecycleOptions{
+	defer lifecycle.OnFinish(ctx, srv, &lifecycle.LifecycleOptions{
 		Env:            s.envs.DeploymentEnv(),
 		ExecuteOnTests: s.definitions.Tests.ExecuteLifecycle,
 	})

@@ -2,6 +2,8 @@ package lifecycle
 
 import (
 	"context"
+
+	"github.com/mikros-dev/mikros/apis/services"
 )
 
 // ServiceLifecycleStarter is an optional behavior that a service can have to
@@ -14,7 +16,7 @@ type ServiceLifecycleStarter interface {
 	// It is also the right place for the service to initialize something that
 	// requires accessing the framework.Service API or initialize specific fields
 	// in its main structure.
-	OnStart(ctx context.Context) error
+	OnStart(ctx context.Context, svc services.ServiceAPI) error
 }
 
 // ServiceLifecycleFinisher is an optional behavior that a service can have to
