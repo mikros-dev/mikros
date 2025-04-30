@@ -35,7 +35,6 @@ import (
 
 // Service is the object which represents a service application.
 type Service struct {
-	serviceToml     string
 	serviceOptions  map[string]options.ServiceOptions
 	runtimeFeatures map[string]interface{}
 	errors          *merrors.Factory
@@ -115,7 +114,6 @@ func initService(opt *options.NewServiceOptions) (*Service, error) {
 	}
 
 	return &Service{
-		serviceToml:     defs.Path(),
 		serviceOptions:  opt.Service,
 		runtimeFeatures: opt.RunTimeFeatures,
 		errors:          initServiceErrors(defs, serviceLogger),
@@ -210,7 +208,7 @@ func (s *Service) postProcessDefinitions(srv interface{}) error {
 	iter := s.features.Iterator()
 	for p, next := iter.Next(); next; p, next = iter.Next() {
 		if cfg, ok := p.(plugin.FeatureSettings); ok {
-			defs, err := cfg.Definitions(s.serviceToml)
+			defs, err := cfg.Definitions(s.definitions.Path())
 			if err != nil {
 				return err
 			}
@@ -222,7 +220,7 @@ func (s *Service) postProcessDefinitions(srv interface{}) error {
 	// Load definitions from all service TOML types and let them available.
 	for _, svc := range s.services.Services() {
 		if d, ok := svc.(plugin.ServiceSettings); ok {
-			defs, err := d.Definitions(s.serviceToml)
+			defs, err := d.Definitions(s.definitions.Path())
 			if err != nil {
 				return err
 			}
@@ -350,7 +348,7 @@ func (s *Service) initializeServiceInternals(ctx context.Context, srv interface{
 	// allow its fields to be initialized at this point. Also, ensures that
 	// everything declared inside the main struct service is initialized to
 	// be used inside the callback.
-	if err := lifecycle.OnStart(ctx, srv, s, &lifecycle.LifecycleOptions{
+	if err := lifecycle.OnStart(ctx, srv, &lifecycle.LifecycleOptions{
 		Env:            s.envs.DeploymentEnv(),
 		ExecuteOnTests: s.definitions.Tests.ExecuteLifecycle,
 	}); err != nil {
@@ -370,10 +368,6 @@ func (s *Service) initializeServiceInternals(ctx context.Context, srv interface{
 // is framework compatible, i.e., it has at least a *mikros.Service member,
 // in order to give access to the framework API through it.
 func (s *Service) initializeServiceHandler(srv interface{}) error {
-	if err := validations.EnsureStructIsServiceCompatible(srv); err != nil {
-		return err
-	}
-
 	var (
 		typeOf  = reflect.TypeOf(srv)
 		valueOf = reflect.ValueOf(srv)
