@@ -10,6 +10,7 @@ const (
 	LoggerFeatureName     = FeatureNamePrefix + "logger"
 	ErrorsFeatureName     = FeatureNamePrefix + "errors"
 	DefinitionFeatureName = FeatureNamePrefix + "definition"
+	EnvFeatureName        = FeatureNamePrefix + "env"
 
 	// These HTTP features plugins don't exist here, but to be supported by
 	// internal services, they must have these names.
