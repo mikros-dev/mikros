@@ -12,12 +12,8 @@ import (
 	"github.com/lab259/cors"
 	"github.com/valyala/fasthttp"
 
-	"github.com/mikros-dev/mikros/apis/http_auth"
-	"github.com/mikros-dev/mikros/apis/http_cors"
-	"github.com/mikros-dev/mikros/apis/http_panic_recovery"
-	loggerApi "github.com/mikros-dev/mikros/apis/logger"
-	tracingApi "github.com/mikros-dev/mikros/apis/tracing"
-	trackerApi "github.com/mikros-dev/mikros/apis/tracker"
+	"github.com/mikros-dev/mikros/apis/behavior"
+	flogger "github.com/mikros-dev/mikros/apis/features/logger"
 	"github.com/mikros-dev/mikros/components/definition"
 	"github.com/mikros-dev/mikros/components/logger"
 	"github.com/mikros-dev/mikros/components/options"
@@ -31,10 +27,10 @@ type Server struct {
 	defs              *Definitions
 	server            *fasthttp.Server
 	listener          net.Listener
-	logger            loggerApi.Logger
-	tracing           tracingApi.Tracer
-	tracker           trackerApi.Tracker
-	panicRecovery     http_panic_recovery.Recovery
+	logger            flogger.LoggerAPI
+	tracing           behavior.Tracer
+	tracker           behavior.Tracker
+	panicRecovery     behavior.Recovery
 }
 
 func New() *Server {
@@ -45,8 +41,8 @@ func (s *Server) Name() string {
 	return definition.ServiceType_HTTP.String()
 }
 
-func (s *Server) Info() []loggerApi.Attribute {
-	return []loggerApi.Attribute{
+func (s *Server) Info() []flogger.Attribute {
+	return []flogger.Attribute{
 		logger.String("service.address", fmt.Sprintf(":%v", s.port.Int32())),
 		logger.String("service.mode", definition.ServiceType_HTTP.String()),
 		logger.String("service.http_auth", fmt.Sprintf("%t", !s.defs.DisableAuth)),
@@ -169,7 +165,7 @@ func (s *Server) createAuthHandlers(ctx context.Context, opt *plugin.ServiceOpti
 	return authPlugin.AuthHandlers()
 }
 
-func (s *Server) getAuth(opt *plugin.ServiceOptions) http_auth.Authenticator {
+func (s *Server) getAuth(opt *plugin.ServiceOptions) behavior.Authenticator {
 	c, err := opt.Features.Feature(options.HttpAuthFeatureName)
 	if err != nil {
 		return nil
@@ -180,7 +176,7 @@ func (s *Server) getAuth(opt *plugin.ServiceOptions) http_auth.Authenticator {
 		return nil
 	}
 
-	return api.FrameworkAPI().(http_auth.Authenticator)
+	return api.FrameworkAPI().(behavior.Authenticator)
 }
 
 // registerHttpServer binds the HTTP handler into the service. It expects that
@@ -204,7 +200,7 @@ func (s *Server) registerHttpServer(handler fasthttp.RequestHandler, opt *plugin
 	}
 }
 
-func (s *Server) getPanicRecovery(opt *plugin.ServiceOptions) http_panic_recovery.Recovery {
+func (s *Server) getPanicRecovery(opt *plugin.ServiceOptions) behavior.Recovery {
 	if s.defs.DisablePanicRecovery {
 		return nil
 	}
@@ -219,10 +215,10 @@ func (s *Server) getPanicRecovery(opt *plugin.ServiceOptions) http_panic_recover
 		return nil
 	}
 
-	return api.FrameworkAPI().(http_panic_recovery.Recovery)
+	return api.FrameworkAPI().(behavior.Recovery)
 }
 
-func (s *Server) getCors(opt *plugin.ServiceOptions) http_cors.Handler {
+func (s *Server) getCors(opt *plugin.ServiceOptions) behavior.Handler {
 	c, err := opt.Features.Feature(options.HttpCorsFeatureName)
 	if err != nil {
 		return nil
@@ -233,7 +229,7 @@ func (s *Server) getCors(opt *plugin.ServiceOptions) http_cors.Handler {
 		return nil
 	}
 
-	return api.FrameworkAPI().(http_cors.Handler)
+	return api.FrameworkAPI().(behavior.Handler)
 }
 
 func (s *Server) serverRequestHandler(h fasthttp.RequestHandler) fasthttp.RequestHandler {
@@ -280,7 +276,7 @@ func (s *Server) handleHTTPError(ctx *fasthttp.RequestCtx, err error) {
 	s.logger.Error(ctx, "http error", logger.Error(err))
 }
 
-func (s *Server) getTracing(opt *plugin.ServiceOptions) tracingApi.Tracer {
+func (s *Server) getTracing(opt *plugin.ServiceOptions) behavior.Tracer {
 	t, err := opt.Features.Feature(options.TracingFeatureName)
 	if err != nil {
 		return nil
@@ -291,10 +287,10 @@ func (s *Server) getTracing(opt *plugin.ServiceOptions) tracingApi.Tracer {
 		return nil
 	}
 
-	return api.FrameworkAPI().(tracingApi.Tracer)
+	return api.FrameworkAPI().(behavior.Tracer)
 }
 
-func (s *Server) getTracker(opt *plugin.ServiceOptions) trackerApi.Tracker {
+func (s *Server) getTracker(opt *plugin.ServiceOptions) behavior.Tracker {
 	t, err := opt.Features.Feature(options.TrackerFeatureName)
 	if err != nil {
 		return nil
@@ -305,5 +301,5 @@ func (s *Server) getTracker(opt *plugin.ServiceOptions) trackerApi.Tracker {
 		return nil
 	}
 
-	return api.FrameworkAPI().(trackerApi.Tracker)
+	return api.FrameworkAPI().(behavior.Tracker)
 }

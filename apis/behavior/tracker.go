@@ -1,4 +1,4 @@
-package tracker
+package behavior
 
 import (
 	"context"

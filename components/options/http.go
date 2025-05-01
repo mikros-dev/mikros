@@ -7,7 +7,7 @@ import (
 
 // HttpServiceOptions gathers options to initialize a service as an HTTP service.
 type HttpServiceOptions struct {
-	ProtoHttpServer httpServiceAPI.HttpServer
+	ProtoHttpServer httpServiceAPI.HttpServerAPI
 }
 
 func (h *HttpServiceOptions) Kind() definition.ServiceType {

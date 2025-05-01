@@ -8,8 +8,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	errorsApi "github.com/mikros-dev/mikros/apis/errors"
-	loggerApi "github.com/mikros-dev/mikros/apis/logger"
+	ferrors "github.com/mikros-dev/mikros/apis/features/errors"
+	flogger "github.com/mikros-dev/mikros/apis/features/logger"
 	"github.com/mikros-dev/mikros/components/logger"
 	"github.com/mikros-dev/mikros/components/service"
 )
@@ -19,17 +19,17 @@ import (
 // interface.
 type ServiceError struct {
 	err        *Error
-	attributes []loggerApi.Attribute
-	logger     func(ctx context.Context, msg string, attrs ...loggerApi.Attribute)
+	attributes []flogger.Attribute
+	logger     func(ctx context.Context, msg string, attrs ...flogger.Attribute)
 }
 
 type serviceErrorOptions struct {
 	Code        int32
-	Kind        errorsApi.Kind
+	Kind        Kind
 	ServiceName string
 	Message     string
 	Destination string
-	Logger      func(ctx context.Context, msg string, attrs ...loggerApi.Attribute)
+	Logger      func(ctx context.Context, msg string, attrs ...flogger.Attribute)
 	Error       error
 }
 
@@ -61,7 +61,7 @@ func FromGRPCStatus(st *status.Status, from, to service.Name) error {
 	if err := json.Unmarshal([]byte(msg), &retErr); err != nil {
 		return newServiceError(&serviceErrorOptions{
 			Destination: to.String(),
-			Kind:        errorsApi.KindInternal,
+			Kind:        KindInternal,
 			ServiceName: from.String(),
 			Message:     "got an internal error",
 			Error:       errors.New(msg),
@@ -71,19 +71,19 @@ func FromGRPCStatus(st *status.Status, from, to service.Name) error {
 	// If we're dealing with a non mikros error, change it to an Internal
 	// one so services can properly handle them.
 	if st.Code() != codes.Unknown {
-		retErr.Kind = errorsApi.KindInternal
+		retErr.Kind = KindInternal
 		retErr.SubLevelError = msg
 	}
 
 	return &retErr
 }
 
-func (s *ServiceError) WithCode(code errorsApi.Code) errorsApi.Error {
+func (s *ServiceError) WithCode(code ferrors.Code) ferrors.Error {
 	s.err.Code = code.ErrorCode()
 	return s
 }
 
-func (s *ServiceError) WithAttributes(attrs ...loggerApi.Attribute) errorsApi.Error {
+func (s *ServiceError) WithAttributes(attrs ...flogger.Attribute) ferrors.Error {
 	s.attributes = attrs
 	return s
 }
@@ -91,7 +91,7 @@ func (s *ServiceError) WithAttributes(attrs ...loggerApi.Attribute) errorsApi.Er
 func (s *ServiceError) Submit(ctx context.Context) error {
 	// Display the error message onto the output
 	if s.logger != nil {
-		logFields := []loggerApi.Attribute{withKind(s.err.Kind)}
+		logFields := []flogger.Attribute{withKind(s.err.Kind)}
 		if s.err.SubLevelError != "" {
 			logFields = append(logFields, logger.String("error.message", s.err.SubLevelError))
 		}
@@ -103,24 +103,24 @@ func (s *ServiceError) Submit(ctx context.Context) error {
 	return s.err
 }
 
-func (s *ServiceError) Kind() errorsApi.Kind {
-	return s.err.Kind
+func (s *ServiceError) Kind() string {
+	return s.err.Kind.String()
 }
 
 // withKind wraps a Kind into a structured log Attribute.
-func withKind(kind errorsApi.Kind) loggerApi.Attribute {
+func withKind(kind Kind) flogger.Attribute {
 	return logger.String("error.kind", string(kind))
 }
 
 // Error is the framework error type that a service handler should return to
 // keep a standard error between services.
 type Error struct {
-	Code          int32          `json:"code"`
-	ServiceName   string         `json:"service_name,omitempty"`
-	Message       string         `json:"message,omitempty"`
-	Destination   string         `json:"destination,omitempty"`
-	Kind          errorsApi.Kind `json:"kind"`
-	SubLevelError string         `json:"details,omitempty"`
+	Code          int32  `json:"code"`
+	ServiceName   string `json:"service_name,omitempty"`
+	Message       string `json:"message,omitempty"`
+	Destination   string `json:"destination,omitempty"`
+	Kind          Kind   `json:"kind"`
+	SubLevelError string `json:"details,omitempty"`
 }
 
 func (e *Error) Error() string {

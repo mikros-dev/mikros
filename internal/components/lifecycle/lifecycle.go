@@ -3,7 +3,6 @@ package lifecycle
 import (
 	"context"
 
-	"github.com/mikros-dev/mikros/apis/lifecycle"
 	"github.com/mikros-dev/mikros/components/definition"
 )
 
@@ -12,24 +11,24 @@ type LifecycleOptions struct {
 	ExecuteOnTests bool
 }
 
-func OnStart(s interface{}, ctx context.Context, opt *LifecycleOptions) error {
+func OnStart(ctx context.Context, s interface{}, opt *LifecycleOptions) error {
 	if !shouldExecute(opt) {
 		return nil
 	}
 
-	if l, ok := s.(lifecycle.ServiceLifecycleStarter); ok {
+	if l, ok := s.(ServiceLifecycleStarter); ok {
 		return l.OnStart(ctx)
 	}
 
 	return nil
 }
 
-func OnFinish(s interface{}, ctx context.Context, opt *LifecycleOptions) {
+func OnFinish(ctx context.Context, s interface{}, opt *LifecycleOptions) {
 	if !shouldExecute(opt) {
 		return
 	}
 
-	if l, ok := s.(lifecycle.ServiceLifecycleFinisher); ok {
+	if l, ok := s.(ServiceLifecycleFinisher); ok {
 		l.OnFinish(ctx)
 	}
 }

@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 
-	trackerApi "github.com/mikros-dev/mikros/apis/tracker"
+	"github.com/mikros-dev/mikros/apis/behavior"
 	mcontext "github.com/mikros-dev/mikros/components/context"
 	"github.com/mikros-dev/mikros/components/service"
 	merrors "github.com/mikros-dev/mikros/internal/components/errors"
@@ -22,7 +22,7 @@ type ClientConnectionOptions struct {
 	Context               *mcontext.ServiceContext
 	Connection            ConnectionOptions
 	AlternativeConnection *ConnectionOptions
-	Tracker               trackerApi.Tracker
+	Tracker               behavior.Tracker
 }
 
 type ConnectionOptions struct {
@@ -68,7 +68,7 @@ func getClientConnectionAddress(options *ClientConnectionOptions) string {
 	return addr
 }
 
-func gRPCClientUnaryInterceptor(svcCtx *mcontext.ServiceContext, tracker trackerApi.Tracker, from, to service.Name) grpc.UnaryClientInterceptor {
+func gRPCClientUnaryInterceptor(svcCtx *mcontext.ServiceContext, tracker behavior.Tracker, from, to service.Name) grpc.UnaryClientInterceptor {
 	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 		if tracker != nil {
 			trackId := tracker.Generate()

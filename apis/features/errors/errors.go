@@ -3,29 +3,12 @@ package errors
 import (
 	"context"
 
-	"github.com/mikros-dev/mikros/apis/logger"
+	"github.com/mikros-dev/mikros/apis/features/logger"
 )
 
-// Kind is an error representation of a mapped error.
-type Kind string
-
-var (
-	KindValidation   Kind = "ValidationError"
-	KindInternal     Kind = "InternalError"
-	KindNotFound     Kind = "NotFoundError"
-	KindPrecondition Kind = "ConditionError"
-	KindPermission   Kind = "PermissionError"
-	KindRPC          Kind = "RPCError"
-	KindCustom       Kind = "CustomError"
-)
-
-func (k Kind) String() string {
-	return string(k)
-}
-
-// ErrorFactory is an API that a service must use to wrap its errors into a proper
+// ErrorAPI is an API that a service must use to wrap its errors into a proper
 // framework error.
-type ErrorFactory interface {
+type ErrorAPI interface {
 	// RPC should be used when an error was received from an RPC call.
 	RPC(err error, destination string) Error
 
@@ -69,7 +52,7 @@ type Error interface {
 	Submit(ctx context.Context) error
 
 	// Kind returns the kind of error represented by the error.
-	Kind() Kind
+	Kind() string
 }
 
 // Code is an interface that allows a service embed an integer value into an

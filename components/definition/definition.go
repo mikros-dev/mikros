@@ -33,6 +33,7 @@ type Definitions struct {
 	Clients  map[string]GrpcClient             `toml:"clients,omitempty"`
 	Services map[string]map[string]interface{} `toml:"services,omitempty"`
 
+	path                  string
 	supportedServiceTypes []string
 	externalServices      map[string]ExternalServiceEntry
 }
@@ -304,4 +305,9 @@ func (d *Definitions) LoadCustomServiceDefinitions(srv interface{}) error {
 	}
 
 	return nil
+}
+
+// Path returns the original path that was loaded to the current definitions.
+func (d *Definitions) Path() string {
+	return d.path
 }

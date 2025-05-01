@@ -14,8 +14,8 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 
-	errorsApi "github.com/mikros-dev/mikros/apis/errors"
-	loggerApi "github.com/mikros-dev/mikros/apis/logger"
+	ferrors "github.com/mikros-dev/mikros/apis/features/errors"
+	flogger "github.com/mikros-dev/mikros/apis/features/logger"
 	"github.com/mikros-dev/mikros/components/definition"
 	"github.com/mikros-dev/mikros/components/logger"
 	"github.com/mikros-dev/mikros/components/options"
@@ -28,7 +28,7 @@ type Server struct {
 	server           *grpc.Server
 	listener         net.Listener
 	health           *health.Server
-	errors           errorsApi.ErrorFactory
+	errors           ferrors.ErrorAPI
 	protoServiceDesc *grpc.ServiceDesc
 }
 
@@ -40,8 +40,8 @@ func (s *Server) Name() string {
 	return definition.ServiceType_gRPC.String()
 }
 
-func (s *Server) Info() []loggerApi.Attribute {
-	return []loggerApi.Attribute{
+func (s *Server) Info() []flogger.Attribute {
+	return []flogger.Attribute{
 		logger.String("service.address", fmt.Sprintf(":%v", s.port.Int32())),
 		logger.String("service.mode", definition.ServiceType_gRPC.String()),
 	}

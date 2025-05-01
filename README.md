@@ -49,24 +49,23 @@ import (
 
     "github.com/mikros-dev/mikros"
     "github.com/mikros-dev/mikros/components/options"
+    logger_api "github.com/mikros-dev/mikros/apis/features/logger"
 )
 
 // service is a structure that will hold all required data and information
-// of the service itself.
-//
-// It must have declared, at least, a member of type *mikros.Service. This
-// gives it the ability of being used and supported by the framework internals.
+// of the service itself. It is also the place to define all features that
+// the service will use.
 type service struct {
-    *mikros.Service
+    Logger logger_api.LoggerAPI `mikros:"feature"`
 }
 
 func (s *service) Run(ctx context.Context) error {
-    s.Logger().Info(ctx, "service Run method executed")
+    s.Logger.Info(ctx, "service Run method executed")
     return nil
 }
 
 func (s *service) Cleanup(ctx context.Context) error {
-    s.Logger().Info(ctx, "cleaning up things")
+    s.Logger.Info(ctx, "cleaning up things")
     return nil
 }
 
@@ -109,10 +108,10 @@ When executed, it outputs the following (with a different time according the exe
 
 ## Roadmap
 
-* Support for receiving custom 'service.toml' definition rules.
+* ~~Support for receiving custom 'service.toml' definition rules.~~
 * Support for HTTP services without being declared in a protobuf file.
 * Support for custom tags, key-value declared in the 'service.toml' file, to be added in each log line.
-* Remove unnecessary Logger APIs.
+* ~~Remove unnecessary Logger APIs.~~
 
 ## License
 
