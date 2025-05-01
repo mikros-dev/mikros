@@ -1,34 +1,39 @@
 package definition
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
+	"github.com/BurntSushi/toml"
 	"github.com/creasty/defaults"
 	"github.com/go-playground/validator/v10"
 
-	"github.com/somatech1/mikros/components/service"
+	"github.com/mikros-dev/mikros/components/service"
+	"github.com/mikros-dev/mikros/internal/components/tags"
 )
 
 // Definitions is a structure representation of a 'service.toml' file. It holds
 // all service information that will be used to initialize it as well as all
 // features it will have when executing.
 type Definitions struct {
-	Name     string                 `toml:"name" validate:"required"`
-	Types    []string               `toml:"types" validate:"required,single_script,no_duplicated_service,dive,service_type"`
-	Version  string                 `toml:"version" validate:"required,version"`
-	Language string                 `toml:"language" validate:"required,oneof=go rust"`
-	Product  string                 `toml:"product" validate:"required"`
-	Envs     []string               `toml:"envs,omitempty" validate:"dive,ascii,uppercase"`
-	Deploy   Deploy                 `toml:"deploy,omitempty"`
-	Features Features               `toml:"features,omitempty"`
-	HTTP     HTTP                   `toml:"http,omitempty"`
-	Log      Log                    `toml:"log,omitempty"`
-	Service  map[string]interface{} `toml:"service,omitempty"`
-	Clients  map[string]GrpcClient  `toml:"clients,omitempty"`
+	Name     string                            `toml:"name" validate:"required"`
+	Types    []string                          `toml:"types" validate:"required,single_script,no_duplicated_service,dive,service_type"`
+	Version  string                            `toml:"version" validate:"required,version"`
+	Language string                            `toml:"language" validate:"required,oneof=go rust"`
+	Product  string                            `toml:"product" validate:"required"`
+	Envs     []string                          `toml:"envs,omitempty" validate:"dive,ascii,uppercase"`
+	Features Features                          `toml:"features,omitempty"`
+	Log      Log                               `toml:"log,omitempty"`
+	Tests    Tests                             `toml:"tests"`
+	Service  map[string]interface{}            `toml:"service,omitempty"`
+	Clients  map[string]GrpcClient             `toml:"clients,omitempty"`
+	Services map[string]map[string]interface{} `toml:"services,omitempty"`
 
+	path                  string
 	supportedServiceTypes []string
 	externalServices      map[string]ExternalServiceEntry
 }
@@ -41,18 +46,6 @@ type Log struct {
 type GrpcClient struct {
 	Port int32  `toml:"port"`
 	Host string `toml:"host"`
-}
-
-type HTTP struct {
-	DisableAuth          bool `toml:"disable_auth,omitempty" default:"false"`
-	DisablePanicRecovery bool `toml:"disable_panic_recovery,omitempty" default:"false"`
-	HideErrorDetails     bool `toml:"hide_error_details,omitempty"`
-}
-
-type Deploy struct {
-	DisableProd bool   `toml:"disable_prod"`
-	DisableDev  bool   `toml:"disable_dev"`
-	Env         string `toml:"env,omitempty" validate:"omitempty,oneof=local test dev prod"`
 }
 
 // Features is a structure that defines a list of features that a service may
@@ -83,6 +76,11 @@ type ExternalServiceEntry interface {
 
 	// Validate should validate if the custom settings are valid or not.
 	Validate() error
+}
+
+// Tests gathers unit tests related options.
+type Tests struct {
+	ExecuteLifecycle bool `toml:"execute_lifecycle"`
 }
 
 // New creates a new Definitions structure initializing the service
@@ -259,4 +257,57 @@ func (d *Definitions) ExternalServiceDefinitions(name string) (ExternalServiceEn
 	}
 
 	return v, nil
+}
+
+// LoadService retrieves only definitions from a specific service type.
+func (d *Definitions) LoadService(serviceType ServiceType) (map[string]interface{}, bool) {
+	dd, ok := d.Services[serviceType.String()]
+	return dd, ok
+}
+
+// LoadCustomServiceDefinitions loads the [service] object directly inside the
+// service member tagged with "definitions".
+func (d *Definitions) LoadCustomServiceDefinitions(srv interface{}) error {
+	var (
+		v = reflect.ValueOf(srv).Elem()
+		t = v.Type()
+	)
+
+	for i := 0; i < t.NumField(); i++ {
+		var (
+			buf      bytes.Buffer
+			field    = t.Field(i)
+			fieldTag = tags.ParseTag(field.Tag)
+		)
+
+		if fieldTag == nil {
+			continue
+		}
+
+		if fieldTag.IsDefinitions {
+			// Serialize service settings back into TOML for us
+			if err := toml.NewEncoder(&buf).Encode(d.Service); err != nil {
+				return err
+			}
+
+			fieldVal := v.Field(i)
+			if fieldVal.IsNil() {
+				fieldVal.Set(reflect.New(field.Type.Elem()))
+			}
+
+			// Decode TOML into the custom service structure
+			if _, err := toml.Decode(buf.String(), fieldVal.Interface()); err != nil {
+				return err
+			}
+
+			break
+		}
+	}
+
+	return nil
+}
+
+// Path returns the original path that was loaded to the current definitions.
+func (d *Definitions) Path() string {
+	return d.path
 }

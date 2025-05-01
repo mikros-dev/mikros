@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/somatech1/mikros/components/definition"
-	"github.com/somatech1/mikros/components/service"
+	"github.com/mikros-dev/mikros/components/definition"
+	"github.com/mikros-dev/mikros/components/service"
 )
 
 // Env is a type that holds information about a single environment variable.
@@ -26,8 +26,22 @@ type envTag struct {
 	DefaultValue string
 }
 
-// Load fills the structure env argument by loading environment variables
-// into it.
+// Load loads environment variables directly into structures by using
+// a special struct tag 'env'.
+//
+// The 'env' tag allows defining the environment variable name that points
+// to the struct member by using the tag first argument. It also allows
+// setting a default value, with the attribute 'default_value', for variables
+// that are not found, and an attribute 'skip' to skip members of being
+// loaded.
+//
+// The function also receives the service name as argument so it can search
+// for environment variables specific to the own service, and to be one
+// specific to the service, the environment variable must end (have as suffix)
+// a dot '.' followed by the service name. Like:
+//
+//	FOO => global variable, for all services
+//	FOO.bar => variable only for service 'bar'
 func Load(serviceName service.Name, env interface{}) error {
 	var (
 		typeOf  = reflect.TypeOf(env)
@@ -99,6 +113,8 @@ func loadFieldValue(field reflect.StructField, tag *envTag, serviceName service.
 
 	case reflect.Struct:
 		return loadStructFieldValue(tag, serviceName, field.Type.String())
+
+	default:
 	}
 
 	return reflect.Value{}, fmt.Errorf("unsupported type (%s) for field '%s'", field.Type.Kind().String(), field.Name)

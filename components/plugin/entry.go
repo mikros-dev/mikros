@@ -5,22 +5,22 @@ import (
 	"errors"
 	"fmt"
 
-	errorsApi "github.com/somatech1/mikros/apis/errors"
-	loggerApi "github.com/somatech1/mikros/apis/logger"
-	"github.com/somatech1/mikros/components/logger"
+	ferrors "github.com/mikros-dev/mikros/apis/features/errors"
+	flogger "github.com/mikros-dev/mikros/apis/features/logger"
+	"github.com/mikros-dev/mikros/components/logger"
 )
 
 // Entry is a member that all framework feature must have declared inside of
 // it (as a struct member). It implements the FeatureEntry interface for the
 // feature if used.
 //
-// Also, if a feature uses it, it already receives a logger.Logger interface
+// Also, if a feature uses it, it already receives a logger.LoggerAPI interface
 // for it for free and error methods to return a proper error for services.
 type Entry struct {
 	featureEnabled bool
 	featureName    string
-	logger         loggerApi.Logger
-	errors         errorsApi.ErrorFactory
+	logger         flogger.LoggerAPI
+	errors         ferrors.ErrorAPI
 }
 
 // UpdateInfo is an internal method that allows a feature to have its
@@ -53,7 +53,7 @@ func (e *Entry) Name() string {
 }
 
 // Logger is a helper method that gives the feature access to the logger API.
-func (e *Entry) Logger() loggerApi.Logger {
+func (e *Entry) Logger() flogger.LoggerAPI {
 	return e.logger
 }
 

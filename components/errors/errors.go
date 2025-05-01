@@ -3,14 +3,13 @@ package errors
 import (
 	"errors"
 
-	errorsApi "github.com/somatech1/mikros/apis/errors"
-	merrors "github.com/somatech1/mikros/internal/components/errors"
+	merrors "github.com/mikros-dev/mikros/internal/components/errors"
 )
 
 // IsInternalError checks if an error is a framework Internal error.
 func IsInternalError(err error) bool {
 	if e, ok := IsKnownError(err); ok {
-		return e.Kind == errorsApi.KindInternal
+		return e.Kind == merrors.KindInternal
 	}
 
 	return false
@@ -19,7 +18,7 @@ func IsInternalError(err error) bool {
 // IsNotFoundError checks if an error is a framework NotFound error.
 func IsNotFoundError(err error) bool {
 	if e, ok := IsKnownError(err); ok {
-		return e.Kind == errorsApi.KindNotFound
+		return e.Kind == merrors.KindNotFound
 	}
 
 	return false
@@ -28,7 +27,7 @@ func IsNotFoundError(err error) bool {
 // IsInvalidArgumentError checks if an error is a framework InvalidArgument error.
 func IsInvalidArgumentError(err error) bool {
 	if e, ok := IsKnownError(err); ok {
-		return e.Kind == errorsApi.KindValidation
+		return e.Kind == merrors.KindValidation
 	}
 
 	return false
@@ -37,7 +36,7 @@ func IsInvalidArgumentError(err error) bool {
 // IsPreconditionError checks if an error is a framework FailedPrecondition error.
 func IsPreconditionError(err error) bool {
 	if e, ok := IsKnownError(err); ok {
-		return e.Kind == errorsApi.KindPrecondition
+		return e.Kind == merrors.KindPrecondition
 	}
 
 	return false
@@ -46,7 +45,7 @@ func IsPreconditionError(err error) bool {
 // IsPermissionDeniedError checks if an error is a framework PermissionDenied error.
 func IsPermissionDeniedError(err error) bool {
 	if e, ok := IsKnownError(err); ok {
-		return e.Kind == errorsApi.KindPermission
+		return e.Kind == merrors.KindPermission
 	}
 
 	return false
@@ -55,7 +54,7 @@ func IsPermissionDeniedError(err error) bool {
 // IsCustomError checks if an error is a framework Custom error.
 func IsCustomError(err error) bool {
 	if e, ok := IsKnownError(err); ok {
-		return e.Kind == errorsApi.KindCustom
+		return e.Kind == merrors.KindCustom
 	}
 
 	return false
@@ -64,7 +63,7 @@ func IsCustomError(err error) bool {
 // IsRPCError checks if an error is a framework RPC error.
 func IsRPCError(err error) bool {
 	if e, ok := IsKnownError(err); ok {
-		return e.Kind == errorsApi.KindRPC
+		return e.Kind == merrors.KindRPC
 	}
 
 	return false

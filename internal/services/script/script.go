@@ -4,15 +4,15 @@ import (
 	"context"
 	"errors"
 
-	loggerApi "github.com/somatech1/mikros/apis/logger"
-	"github.com/somatech1/mikros/apis/services/script"
-	"github.com/somatech1/mikros/components/definition"
-	"github.com/somatech1/mikros/components/logger"
-	"github.com/somatech1/mikros/components/plugin"
+	flogger "github.com/mikros-dev/mikros/apis/features/logger"
+	"github.com/mikros-dev/mikros/apis/services/script"
+	"github.com/mikros-dev/mikros/components/definition"
+	"github.com/mikros-dev/mikros/components/logger"
+	"github.com/mikros-dev/mikros/components/plugin"
 )
 
 type Server struct {
-	svc    script.ServiceAPI
+	svc    script.ScriptApi
 	ctx    context.Context
 	cancel context.CancelFunc
 }
@@ -34,16 +34,16 @@ func (s *Server) Initialize(ctx context.Context, _ *plugin.ServiceOptions) error
 	return nil
 }
 
-func (s *Server) Info() []loggerApi.Attribute {
-	return []loggerApi.Attribute{
+func (s *Server) Info() []flogger.Attribute {
+	return []flogger.Attribute{
 		logger.String("service.mode", definition.ServiceType_Script.String()),
 	}
 }
 
 func (s *Server) Run(_ context.Context, srv interface{}) error {
-	svc, ok := srv.(script.ServiceAPI)
+	svc, ok := srv.(script.ScriptApi)
 	if !ok {
-		return errors.New("server object does not implement the script.ServiceAPI interface")
+		return errors.New("server object does not implement the script.ScriptApi interface")
 	}
 
 	// Holds a reference to the service, so we can stop it later.

@@ -1,4 +1,4 @@
-package http_auth
+package behavior
 
 import (
 	"context"

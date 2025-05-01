@@ -3,9 +3,9 @@ package tracker
 import (
 	"strings"
 
-	trackerApi "github.com/somatech1/mikros/apis/tracker"
-	"github.com/somatech1/mikros/components/options"
-	"github.com/somatech1/mikros/components/plugin"
+	"github.com/mikros-dev/mikros/apis/behavior"
+	"github.com/mikros-dev/mikros/components/options"
+	"github.com/mikros-dev/mikros/components/plugin"
 )
 
 type Tracker struct {
@@ -23,10 +23,10 @@ func New(features *plugin.FeatureSet) (*Tracker, error) {
 	}, nil
 }
 
-func (t *Tracker) Tracker() (trackerApi.Tracker, bool) {
+func (t *Tracker) Tracker() (behavior.Tracker, bool) {
 	if t.tracker != nil {
 		if api, ok := t.tracker.(plugin.FeatureInternalAPI); ok {
-			return api.FrameworkAPI().(trackerApi.Tracker), true
+			return api.FrameworkAPI().(behavior.Tracker), true
 		}
 	}
 

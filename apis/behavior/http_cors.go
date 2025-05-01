@@ -1,4 +1,4 @@
-package http_cors
+package behavior
 
 import (
 	"github.com/lab259/cors"

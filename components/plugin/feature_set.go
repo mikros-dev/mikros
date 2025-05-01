@@ -121,15 +121,9 @@ func (s *FeatureSet) Count() int {
 
 func (s *FeatureSet) Append(features *FeatureSet) {
 	if features != nil {
-		for name, f := range features.features {
-			p := &registeredFeature{
-				feature:      f.feature,
-				dependencies: f.dependencies,
-				name:         name,
-			}
-
-			s.features[name] = p
-			s.orderedFeatures = append(s.orderedFeatures, p)
+		for _, feature := range features.orderedFeatures {
+			s.features[feature.name] = feature
+			s.orderedFeatures = append(s.orderedFeatures, feature)
 		}
 	}
 }

@@ -5,7 +5,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 
-	"github.com/somatech1/mikros/components/definition"
+	"github.com/mikros-dev/mikros/components/definition"
 )
 
 // NewServiceOptions gathers all the main options that one can use to create a new

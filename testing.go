@@ -3,9 +3,9 @@ package mikros
 import (
 	"context"
 
-	"github.com/somatech1/mikros/components/definition"
-	"github.com/somatech1/mikros/components/plugin"
-	"github.com/somatech1/mikros/components/testing"
+	"github.com/mikros-dev/mikros/components/definition"
+	"github.com/mikros-dev/mikros/components/plugin"
+	"github.com/mikros-dev/mikros/components/testing"
 )
 
 // ServiceTesting is an object created by a Service.SetupTest call.
@@ -18,7 +18,7 @@ type ServiceTesting struct {
 }
 
 func setupServiceTesting(ctx context.Context, svc *Service, t *testing.Testing) *ServiceTesting {
-	if svc.envs.DeploymentEnv != definition.ServiceDeploy_Test {
+	if svc.envs.DeploymentEnv() != definition.ServiceDeploy_Test {
 		return &ServiceTesting{}
 	}
 

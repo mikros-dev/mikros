@@ -5,8 +5,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/somatech1/mikros/components/definition"
-	"github.com/somatech1/mikros/components/service"
+	"github.com/mikros-dev/mikros/components/definition"
+	"github.com/mikros-dev/mikros/components/service"
 )
 
 type envsExample struct {

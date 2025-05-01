@@ -1,6 +1,8 @@
-package http_panic_recovery
+package behavior
 
-import "context"
+import (
+	"context"
+)
 
 // Recovery is a behavior that an HTTP panic recovery feature (plugin)
 // must implement to be used inside the HTTP service implementation.

@@ -1,15 +1,21 @@
-package plugin
+package env
 
 import (
-	"github.com/somatech1/mikros/components/definition"
+	"github.com/mikros-dev/mikros/components/definition"
 )
 
-// Env is the plugin interface that allow plugins (features and services) to "access"
-// the framework env.
-type Env interface {
-	// Get retrieves an environment variable value that was declared inside the
-	// service.toml file.
-	Get(key string) interface{}
+type EnvAPI interface {
+	// Get searches and returns the value of an environment variable in string
+	// format.
+	Get(name string) string
+
+	// GetInt searches and returns the value of an environment variable in
+	// an int format.
+	GetInt(name string) (int, error)
+
+	// GetBool searches and returns the value of an environment variable in
+	// a boolean format.
+	GetBool(name string) (bool, error)
 
 	// DeploymentEnv gets the current service deployment environment.
 	DeploymentEnv() definition.ServiceDeploy
