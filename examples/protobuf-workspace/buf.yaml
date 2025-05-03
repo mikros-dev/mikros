@@ -1,0 +1,20 @@
+version: v2
+
+modules:
+  - path: proto
+
+deps:
+  - buf.build/googleapis/googleapis
+
+breaking:
+  use:
+    - FILE
+
+lint:
+  use:
+    - STANDARD
+
+  except:
+    # We're ignoring the mandatory suffix version for package names here since
+    # we don't use them.
+    - PACKAGE_VERSION_SUFFIX

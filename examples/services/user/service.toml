@@ -1,0 +1,8 @@
+name = "user"
+types = ["grpc"]
+version = "v0.1.0"
+language = "go"
+product = "EXAMPLE"
+
+[tests]
+  execute_lifecycle = false

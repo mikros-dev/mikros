@@ -10,12 +10,12 @@ type service struct {
 	Logger logger_api.LoggerAPI `mikros:"feature"`
 }
 
-func (s *service) Run(ctx context.Context) error {
-	s.Logger.Info(ctx, "service Run")
+func (s *service) Start(ctx context.Context) error {
+	s.Logger.Info(ctx, "service Start")
 	return nil
 }
 
-func (s *service) Cleanup(ctx context.Context) error {
-	s.Logger.Info(ctx, "service Cleanup")
+func (s *service) Stop(ctx context.Context) error {
+	s.Logger.Info(ctx, "service Stop")
 	return nil
 }

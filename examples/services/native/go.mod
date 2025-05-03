@@ -1,10 +1,10 @@
-module script
+module native
 
 replace github.com/mikros-dev/mikros => ../../../
 
 go 1.23.5
 
-require github.com/mikros-dev/mikros v0.12.0
+require github.com/mikros-dev/mikros v0.0.0-00010101000000-000000000000
 
 require (
 	github.com/BurntSushi/toml v1.4.0 // indirect
