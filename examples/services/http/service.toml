@@ -1,4 +1,4 @@
-name = "user_bff"
+name = "http"
 types = ["http"]
 version = "v0.1.0"
 language = "go"
