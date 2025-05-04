@@ -1,4 +1,4 @@
-name = "user"
+name = "grpc"
 types = ["grpc"]
 version = "v0.1.0"
 language = "go"
