@@ -3,6 +3,7 @@ package logger
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -43,7 +44,7 @@ type Logger struct {
 
 type Options struct {
 	TextOutput             bool
-	LogOnlyFatalLevel      bool
+	DiscardMessages        bool
 	DisableErrorStacktrace bool
 	FixedAttributes        map[string]string
 }
@@ -99,16 +100,19 @@ func New(options Options) *Logger {
 		errHandler = slog.NewTextHandler(os.Stdout, opts).WithAttrs(attrs)
 	}
 
-	// This configures the test environment to only log fatal errors, so the
-	// test output is easier to read and debug.
-	if options.LogOnlyFatalLevel {
-		level.setLevel(levelFatal)
+	// Create our handlers
+	l := slog.New(logHandler)
+	e := slog.New(errHandler)
+
+	if options.DiscardMessages {
+		l = slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{}))
+		e = l
 	}
 
 	return &Logger{
 		showErrorStacktrace: !options.DisableErrorStacktrace,
-		logger:              slog.New(logHandler),
-		errorLogger:         slog.New(errHandler),
+		logger:              l,
+		errorLogger:         e,
 		level:               level,
 	}
 }
