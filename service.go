@@ -86,9 +86,16 @@ func initService(opt *options.NewServiceOptions) (*Service, error) {
 		return nil, err
 	}
 
+	// By default, we always discard log messages when running unit tests,
+	// but this behavior can be changed using service definitions.
+	discardMessages := envs.DeploymentEnv() == definition.ServiceDeploy_Test
+	if discardMessages && defs.Tests.DiscardLogMessages != nil {
+		discardMessages = *defs.Tests.DiscardLogMessages
+	}
+
 	// Initialize the service logger system.
 	serviceLogger := mlogger.New(mlogger.Options{
-		LogOnlyFatalLevel:      envs.DeploymentEnv() == definition.ServiceDeploy_Test,
+		DiscardMessages:        discardMessages,
 		DisableErrorStacktrace: !defs.Log.ErrorStacktrace,
 		FixedAttributes: map[string]string{
 			"service.name":    defs.ServiceName().String(),

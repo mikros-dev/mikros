@@ -80,7 +80,8 @@ type ExternalServiceEntry interface {
 
 // Tests gathers unit tests related options.
 type Tests struct {
-	ExecuteLifecycle bool `toml:"execute_lifecycle"`
+	ExecuteLifecycle   bool  `toml:"execute_lifecycle"`
+	DiscardLogMessages *bool `toml:"discard_log_messages"`
 }
 
 // New creates a new Definitions structure initializing the service
