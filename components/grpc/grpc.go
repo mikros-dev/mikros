@@ -39,7 +39,7 @@ type ConnectionOptions struct {
 func ClientConnection(options *ClientConnectionOptions) (*grpc.ClientConn, error) {
 	address := getClientConnectionAddress(options)
 
-	conn, err := grpc.Dial(
+	conn, err := grpc.NewClient(
 		address,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithUnaryInterceptor(gRPCClientUnaryInterceptor(options.Context, options.Tracker, options.ServiceName, options.ClientName)),
