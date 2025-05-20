@@ -338,10 +338,6 @@ func (s *Service) setupLoggerExtractor() error {
 }
 
 func (s *Service) initializeServiceInternals(ctx context.Context, srv interface{}) *merrors.AbortError {
-	if err := s.initializeServiceHandler(srv); err != nil {
-		return merrors.NewAbortError("invalid service server object", err)
-	}
-
 	if err := s.initializeRegisteredServices(ctx, srv); err != nil {
 		return merrors.NewAbortError("could not initialize internal services", err)
 	}
@@ -365,30 +361,6 @@ func (s *Service) initializeServiceInternals(ctx context.Context, srv interface{
 	if s.envs.DeploymentEnv() != definition.ServiceDeploy_Test {
 		if err := validations.EnsureValuesAreInitialized(srv); err != nil {
 			return merrors.NewAbortError("service server object is not properly initialized", err)
-		}
-	}
-
-	return nil
-}
-
-// initializeServiceHandler initializes the service structure ensuring that it
-// is framework compatible, i.e., it has at least a *mikros.Service member,
-// in order to give access to the framework API through it.
-func (s *Service) initializeServiceHandler(srv interface{}) error {
-	var (
-		typeOf  = reflect.TypeOf(srv)
-		valueOf = reflect.ValueOf(srv)
-	)
-
-	for i := 0; i < typeOf.Elem().NumField(); i++ {
-		typeField := typeOf.Elem().Field(i)
-
-		// Initializes the service *Service member, allowing it having access to
-		// the framework API.
-		if typeField.Type.String() == "*mikros.Service" {
-			ptr := reflect.New(reflect.ValueOf(s).Type())
-			ptr.Elem().Set(reflect.ValueOf(s))
-			valueOf.Elem().Field(i).Set(ptr.Elem())
 		}
 	}
 
