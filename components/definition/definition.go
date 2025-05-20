@@ -301,6 +301,14 @@ func (d *Definitions) LoadCustomServiceDefinitions(srv interface{}) error {
 				return err
 			}
 
+			// Validates the settings just loaded, if the filed implements
+			// the validator interface.
+			if validador, ok := fieldVal.Interface().(Validator); ok {
+				if err := validador.Validate(); err != nil {
+					return err
+				}
+			}
+
 			break
 		}
 	}
