@@ -45,9 +45,9 @@ func (e ServiceDeploy) String() string {
 		return "dev"
 	case ServiceDeploy_Local:
 		return "local"
+	default:
+		return unknownType
 	}
-
-	return unknownType
 }
 
 func (e ServiceDeploy) FromString(in string) ServiceDeploy {
@@ -97,4 +97,8 @@ type FeatureEntry struct {
 
 func (f FeatureEntry) IsEnabled() bool {
 	return f.Enabled
+}
+
+type Validator interface {
+	Validate() error
 }

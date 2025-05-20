@@ -2,11 +2,28 @@ package main
 
 import (
 	"context"
+	"errors"
 
+	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
 	userpb "github.com/mikros-dev/mikros/examples/protobuf-workspace/gen/go/services/user"
 )
 
 type service struct {
+	Definitions *Definitions         `mikros:"definitions"`
+	Logger      logger_api.LoggerAPI `mikros:"feature"`
+}
+
+type Definitions struct {
+	Foo string
+	Bar int
+}
+
+func (d *Definitions) Validate() error {
+	if d.Foo == "" {
+		return errors.New("field foo is required")
+	}
+
+	return nil
 }
 
 func (s *service) GetUserByID(ctx context.Context, req *userpb.GetUserByIDRequest) (*userpb.GetUserByIDResponse, error) {

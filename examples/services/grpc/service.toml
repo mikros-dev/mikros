@@ -6,3 +6,8 @@ product = "EXAMPLE"
 
 [tests]
   execute_lifecycle = false
+
+# Custom service settings to be loaded inside its Definitions struct.
+[service]
+  foo = "hello world"
+  bar = 42
