@@ -6,57 +6,68 @@ import (
 	"github.com/mikros-dev/mikros/apis/features/logger"
 )
 
-// ErrorAPI is an API that a service must use to wrap its errors into a proper
-// framework error.
+// ErrorAPI provides a structured way for services to create and handle errors.
+//
+// This interface is implemented by the mikros framework and made available to
+// services that opt into the feature. It enables classification of service
+// errors into standard types (e.g., internal, not found, invalid argument)
+// for consistent error reporting and logging.
 type ErrorAPI interface {
-	// RPC should be used when an error was received from an RPC call.
+	// RPC should be used when an error is received from an RPC call to
+	// another service. The destination identifies the remote service.
 	RPC(err error, destination string) Error
 
-	// InvalidArgument should be used when invalid arguments were received
-	// inside a service handler.
+	// InvalidArgument should be used when a handler receives invalid input
+	// parameters.
 	InvalidArgument(err error) Error
 
-	// FailedPrecondition should be used when a specific condition is not met.
+	// FailedPrecondition should be used when a required condition is not met
+	// for an operation to proceed.
 	FailedPrecondition(message string) Error
 
-	// NotFound should be used when a resource was not found.
+	// NotFound should be used when a requested resource could not be located.
 	NotFound() Error
 
-	// Internal should be used when an unexpected behavior (or error) occurred
-	// internally.
+	// Internal should be used when an unexpected internal behavior or failure
+	// occurs in the service.
 	Internal(err error) Error
 
-	// PermissionDenied should be used when a client does not have access to
-	// a specific resource.
+	// PermissionDenied should be used when a client is not authorized to
+	// access the requested resource.
 	PermissionDenied() Error
 
-	// Custom should be used by a service when none of the previous APIs are
-	// able to handle the error that occurred. It will be forward as an internal
-	// error.
+	// Custom should be used for error cases that do not match any of the
+	// predefined types. These are treated as internal errors by default.
 	Custom(msg string) Error
 }
 
-// Error is the proper error that a service can return by its handlers. When
-// submitted, it writes a log message describing what happened, and it gives
-// the error using the language error type.
+// Error represents a structured service error returned by handlers.
+//
+// The mikros framework provides this interface to allow services to enrich
+// errors with metadata such as error codes and log attributes. When submitted,
+// the error is logged and returned in a format suitable for clients.
 type Error interface {
-	// WithCode sets a custom error code to be added inside the error.
+	// WithCode attaches a custom numeric code to the error.
 	WithCode(code Code) Error
 
-	// WithAttributes adds a set o custom log attributes to be inserted into
-	// the log message.
+	// WithAttributes adds custom log attributes to be included in the log
+	// entry generated for this error.
 	WithAttributes(attrs ...logger.Attribute) Error
 
-	// Submit wraps the service error into a proper error type allowing the
-	// service to return it.
+	// Submit finalizes the error, logs it, and converts it into a standard
+	// Go error for return from a handler.
 	Submit(ctx context.Context) error
 
-	// Kind returns the kind of error represented by the error.
+	// Kind returns the classification of the error (e.g., "not_found",
+	// "internal", "invalid_argument").
 	Kind() string
 }
 
-// Code is an interface that allows a service embed an integer value into an
-// error.
+// Code allows embedding a numeric error code into a service error.
+//
+// This can be used to define domain-specific codes for client interpretation
+// or structured logging.
 type Code interface {
+	// ErrorCode returns the numeric code associated with the error.
 	ErrorCode() int32
 }
