@@ -26,7 +26,7 @@ type LoggerAPI interface {
 	Error(ctx context.Context, msg string, attrs ...Attribute)
 
 	// Fatal logs a message at the fatal level with optional attributes.
-	// It cause the process to terminate.
+	// It causes the process to terminate.
 	Fatal(ctx context.Context, msg string, attrs ...Attribute)
 
 	// SetLogLevel changes the current log level to the specified value.
