@@ -16,10 +16,12 @@ func Parse() (*Definitions, error) {
 		return nil, err
 	}
 
-	return parse(path)
+	return ParseFromFile(path)
 }
 
-func parse(path string) (*Definitions, error) {
+// ParseFromFile is an alternative way of loading a service definitions file
+// for outside projects.
+func ParseFromFile(path string) (*Definitions, error) {
 	defs, err := New()
 	if err != nil {
 		return nil, err
