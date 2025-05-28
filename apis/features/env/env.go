@@ -4,38 +4,43 @@ import (
 	"github.com/mikros-dev/mikros/components/definition"
 )
 
+// EnvAPI provides access to environment-related settings for the running
+// service.
+//
+// This interface is implemented by the mikros framework and is available to
+// services that opt into the feature. It offers access to environment variables
+// and deployment configuration values commonly required at runtime.
 type EnvAPI interface {
-	// Get searches and returns the value of an environment variable in string
-	// format.
+	// Get retrieves the value of an environment variable as a string.
 	Get(name string) string
 
-	// GetInt searches and returns the value of an environment variable in
-	// an int format.
+	// GetInt retrieves the value of an environment variable and parses it as
+	// an integer.
 	GetInt(name string) (int, error)
 
-	// GetBool searches and returns the value of an environment variable in
-	// a boolean format.
+	// GetBool retrieves the value of an environment variable and parses it as
+	// a boolean.
 	GetBool(name string) (bool, error)
 
-	// DeploymentEnv gets the current service deployment environment.
+	// DeploymentEnv returns the current service deployment environment.
 	DeploymentEnv() definition.ServiceDeploy
 
-	// TrackerHeaderName gives the current header name that contains the service
-	// tracker ID (for HTTP services).
+	// TrackerHeaderName returns the header name used to carry the service
+	// tracker ID in HTTP requests and requests between services.
 	TrackerHeaderName() string
 
-	// IsCICD gets if the CI/CD is being running or not.
+	// IsCICD indicates whether the service is running in a CI/CD environment.
 	IsCICD() bool
 
-	// CoupledNamespace returns the namespace used by the services.
+	// CoupledNamespace returns the namespace used for inter-service coupling.
 	CoupledNamespace() string
 
-	// CoupledPort returns the port used to couple between services.
+	// CoupledPort returns the port number used for inter-service coupling.
 	CoupledPort() int32
 
-	// GrpcPort returns the port number that gRPC services should use.
+	// GrpcPort returns the port number to be used for gRPC services.
 	GrpcPort() int32
 
-	// HttpPort returns the port number that HTTP services should use.
+	// HttpPort returns the port number to be used for HTTP services.
 	HttpPort() int32
 }

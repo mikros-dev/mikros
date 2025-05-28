@@ -4,37 +4,47 @@ import (
 	"context"
 )
 
-// LoggerAPI is the log interface that is available for all services to show
-// messages using different levels.
+// LoggerAPI provides a structured logging interface with multiple log levels.
+//
+// This interface is implemented by the mikros framework and is available to all
+// services by default. It allows emitting log messages with contextual metadata
+// using attributes, and supports runtime log level configuration.
 type LoggerAPI interface {
-	// Debug outputs messages using debug level.
+	// Debug logs a message at the debug level with optional attributes.
 	Debug(ctx context.Context, msg string, attrs ...Attribute)
 
-	// Internal outputs messages using the internal level.
+	// Internal logs a message at the internal level with optional attributes.
 	Internal(ctx context.Context, msg string, attrs ...Attribute)
 
-	// Info outputs messages using the info level.
+	// Info logs a message at the info level with optional attributes.
 	Info(ctx context.Context, msg string, attrs ...Attribute)
 
-	// Warn outputs messages using warning level.
+	// Warn logs a message at the warning level with optional attributes.
 	Warn(ctx context.Context, msg string, attrs ...Attribute)
 
-	// Error outputs messages using error level.
+	// Error logs a message at the error level with optional attributes.
 	Error(ctx context.Context, msg string, attrs ...Attribute)
 
-	// Fatal outputs message using fatal level.
+	// Fatal logs a message at the fatal level with optional attributes.
+	// It causes the process to terminate.
 	Fatal(ctx context.Context, msg string, attrs ...Attribute)
 
-	// SetLogLevel changes the current messages log level.
+	// SetLogLevel changes the current log level to the specified value.
+	// Returns the previous level or an error if the input is invalid.
 	SetLogLevel(level string) (string, error)
 
-	// Level gets the current log level.
+	// Level returns the current log level as a string.
 	Level() string
 }
 
-// Attribute is an interface that a property that can be written into a log
-// message must have in order to do so.
+// Attribute represents a key-value pair attached to log messages.
+//
+// Attributes provide additional context to log entries and are used
+// to structure logs for better querying and filtering.
 type Attribute interface {
+	// Key returns the attribute's name.
 	Key() string
+
+	// Value returns the attribute's value.
 	Value() interface{}
 }
