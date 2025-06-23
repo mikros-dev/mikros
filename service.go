@@ -520,7 +520,7 @@ func (s *Service) run(ctx context.Context, srv interface{}) {
 		s.logger.Info(ctx, "service is running", svc.Info()...)
 
 		if err := svc.Run(ctx, srv); err != nil {
-			s.abort(ctx, merrors.NewAbortError("fatal error", err))
+			s.abort(ctx, merrors.NewAbortError("could not execute service", err))
 		}
 
 		return
@@ -546,7 +546,7 @@ func (s *Service) run(ctx context.Context, srv interface{}) {
 	// Blocks the call
 	select {
 	case err := <-errChan:
-		s.abort(ctx, merrors.NewAbortError("fatal error", err))
+		s.abort(ctx, merrors.NewAbortError("could not execute service", err))
 
 	case <-stopChan:
 	}
