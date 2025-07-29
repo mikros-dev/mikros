@@ -8,8 +8,8 @@ require (
 	github.com/fasthttp/router v1.5.4
 	github.com/go-playground/validator/v10 v10.25.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
-	github.com/iancoleman/strcase v0.3.0
 	github.com/lab259/cors v0.2.0
+	github.com/stoewer/go-strcase v1.3.1
 	github.com/stretchr/testify v1.10.0
 	github.com/valyala/fasthttp v1.59.0
 	go.uber.org/mock v0.5.0
