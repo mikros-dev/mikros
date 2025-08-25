@@ -197,6 +197,7 @@ func (s *Server) registerHttpServer(handler fasthttp.RequestHandler, opt *plugin
 		WriteTimeout:          60 * time.Second,
 		ReadBufferSize:        64 * 1024,
 		WriteBufferSize:       64 * 1024,
+		MaxRequestBodySize:    s.defs.MaxRequestBodySize * 1024 * 1024,
 	}
 }
 
