@@ -402,7 +402,7 @@ func parseFloatValue(s string, k reflect.Kind) (reflect.Value, error) {
 
 	f, err := strconv.ParseFloat(strings.TrimSpace(s), bitSize)
 	if err != nil {
-		return reflect.Value{}, fmt.Errorf("parse float: %w", err)
+		return reflect.Value{}, err
 	}
 
 	if bitSize == 32 {
