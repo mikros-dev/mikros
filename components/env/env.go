@@ -1,212 +1,46 @@
 package env
 
 import (
+	"encoding"
 	"errors"
 	"fmt"
 	"os"
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
-	"github.com/mikros-dev/mikros/components/definition"
 	"github.com/mikros-dev/mikros/components/service"
 )
 
-// Env is a type that holds information about a single environment variable.
-// It can give both the environment variable source name and its loaded
-// value.
+const (
+	separator = "__"
+)
+
+var (
+	errorNilTarget       = errors.New("env: nil target")
+	errorNonPtrTarget    = errors.New("env: target must be a non-nil pointer to struct")
+	errorNonStructTarget = errors.New("env: target must point to a struct")
+	errorNoTagName       = errors.New("'env' tag cannot be empty")
+	errorDefaultValue    = errors.New("default_value requires a value")
+	errorPointerField    = errors.New("env: pointer-typed fields are not supported; use value type or Env[T]")
+
+	envStringType = reflect.TypeOf(Env[string]{})
+	envInt32Type  = reflect.TypeOf(Env[int32]{})
+
+	textUnmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+	timeDurationType    = reflect.TypeOf(time.Duration(0))
+)
+
+type Options struct {
+	Separator string
+}
+
+// Env is a type that raps an environment-backed value, exposing both its value
+// and the concrete env var name used to populate it.
 type Env[T any] struct {
 	value   T
 	varName string
-}
-
-type envTag struct {
-	SkipField    bool
-	Name         string
-	DefaultValue string
-}
-
-// Load loads environment variables directly into structures by using
-// a special struct tag 'env'.
-//
-// The 'env' tag allows defining the environment variable name that points
-// to the struct member by using the tag first argument. It also allows
-// setting a default value, with the attribute 'default_value', for variables
-// that are not found, and an attribute 'skip' to skip members of being
-// loaded.
-//
-// The function also receives the service name as argument so it can search
-// for environment variables specific to the own service, and to be one
-// specific to the service, the environment variable must end (have as suffix)
-// a dot '.' followed by the service name. Like:
-//
-//	FOO => global variable, for all services
-//	FOO.bar => variable only for service 'bar'
-func Load(serviceName service.Name, env interface{}) error {
-	var (
-		typeOf  = reflect.TypeOf(env)
-		valueOf = reflect.ValueOf(env)
-	)
-
-	for i := 0; i < typeOf.Elem().NumField(); i++ {
-		typeField := typeOf.Elem().Field(i)
-		tag, err := parseFieldTag(typeField.Tag)
-		if err != nil {
-			return fmt.Errorf("'%s':%w", typeField.Name, err)
-		}
-
-		if tag.SkipField {
-			continue
-		}
-
-		fieldValue, err := loadFieldValue(typeField, tag, serviceName)
-		if err != nil {
-			return err
-		}
-
-		ptr := reflect.New(fieldValue.Type())
-		ptr.Elem().Set(fieldValue)
-		valueOf.Elem().Field(i).Set(ptr.Elem())
-	}
-
-	return nil
-}
-
-func parseFieldTag(tag reflect.StructTag) (*envTag, error) {
-	t, ok := tag.Lookup("env")
-	if !ok {
-		return nil, errors.New("field does not have an 'env' tag")
-	}
-
-	entries := strings.Split(t, ",")
-	if len(entries) == 0 {
-		return nil, errors.New("'env' tag cannot be empty")
-	}
-
-	parsedTag := &envTag{
-		Name: entries[0],
-	}
-
-	for _, entry := range entries[1:] {
-		parts := strings.Split(entry, "=")
-		switch parts[0] {
-		case "default_value":
-			parsedTag.DefaultValue = parts[1]
-		case "skip":
-			parsedTag.SkipField = true
-		}
-	}
-
-	return parsedTag, nil
-}
-
-func loadFieldValue(field reflect.StructField, tag *envTag, serviceName service.Name) (reflect.Value, error) {
-	switch field.Type.Kind() {
-	case reflect.Bool:
-		return loadBoolFieldValue(tag, serviceName)
-
-	case reflect.Int32:
-		return loadInt32FieldValue(field.Name, tag, serviceName)
-
-	case reflect.String:
-		return loadStringFieldValue(tag, serviceName)
-
-	case reflect.Struct:
-		return loadStructFieldValue(tag, serviceName, field.Type.String())
-
-	default:
-	}
-
-	return reflect.Value{}, fmt.Errorf("unsupported type (%s) for field '%s'", field.Type.Kind().String(), field.Name)
-}
-
-func loadBoolFieldValue(tag *envTag, serviceName service.Name) (reflect.Value, error) {
-	v := getEnv(serviceName, tag.Name, tag.DefaultValue)
-	if v != "true" && v != "false" {
-		return reflect.Value{}, fmt.Errorf("unsupported value '%s' of bool field", v)
-	}
-
-	boolValue, err := strconv.ParseBool(v)
-	if err != nil {
-		return reflect.Value{}, err
-	}
-
-	return reflect.ValueOf(boolValue), nil
-}
-
-func loadInt32FieldValue(fieldName string, tag *envTag, serviceName service.Name) (reflect.Value, error) {
-	v := getEnv(serviceName, tag.Name, tag.DefaultValue)
-
-	// Handle special cases
-	if fieldName == "DeploymentEnv" {
-		env := definition.ServiceDeploy.FromString(definition.ServiceDeploy(0), v)
-		return reflect.ValueOf(env), nil
-	}
-
-	intValue, err := strconv.ParseInt(v, 10, 32)
-	if err != nil {
-		return reflect.Value{}, err
-	}
-
-	return reflect.ValueOf(int32(intValue)), nil
-}
-
-func loadStringFieldValue(tag *envTag, serviceName service.Name) (reflect.Value, error) {
-	v := getEnv(serviceName, tag.Name, tag.DefaultValue)
-	return reflect.ValueOf(v), nil
-}
-
-func loadStructFieldValue(tag *envTag, serviceName service.Name, fieldType string) (reflect.Value, error) {
-	v := getEnv(serviceName, tag.Name, tag.DefaultValue)
-
-	if strings.Contains(fieldType, "[string]") {
-		e := Env[string]{
-			value:   v,
-			varName: tag.Name,
-		}
-
-		return reflect.ValueOf(e), nil
-	}
-
-	if strings.Contains(fieldType, "[int32]") {
-		intValue, err := strconv.ParseInt(v, 10, 32)
-		if err != nil {
-			return reflect.Value{}, err
-		}
-
-		e := Env[int32]{
-			value:   int32(intValue),
-			varName: tag.Name,
-		}
-
-		return reflect.ValueOf(e), nil
-	}
-
-	return reflect.Value{}, fmt.Errorf("unsupported Env '%v'", fieldType)
-}
-
-// getEnv is a helper function to load environment variables using priority key
-// rules, by first checking if key.service_name exists before checking if key
-// exists.
-func getEnv(serviceName service.Name, key, defaultValue string) string {
-	v := getEnvOrDefault(fmt.Sprintf("%v.%v", key, serviceName.String()), "")
-	if v == "" {
-		v = getEnvOrDefault(key, defaultValue)
-	}
-
-	return v
-}
-
-// getEnvOrDefault returns an environment variable with no fatal error with the
-// possibility of using a default value if the variable does not exist.
-func getEnvOrDefault(name string, defaultValue string) string {
-	value := os.Getenv(name)
-
-	if defaultValue != "" && value == "" {
-		return defaultValue
-	}
-
-	return value
 }
 
 func (e Env[T]) Value() T {
@@ -219,4 +53,379 @@ func (e Env[T]) String() string {
 
 func (e Env[T]) VarName() string {
 	return e.varName
+}
+
+type envTag struct {
+	Required     bool
+	Name         string
+	DefaultValue string
+}
+
+// Load populates a struct from environment variables.
+//
+// Precedence:
+//  1. SERVICE<sep>KEY
+//  2. KEY
+//
+// Example: if service is "file", default sep is "__":
+//
+//	file__DB_HOST → DB_HOST
+func Load(serviceName service.Name, target interface{}, options ...Options) error {
+	rv, rt, err := validateTarget(target)
+	if err != nil {
+		return err
+	}
+
+	opt := Options{
+		Separator: separator,
+	}
+	if len(options) > 0 {
+		opt = options[0]
+	}
+
+	for i := 0; i < rv.NumField(); i++ {
+		var (
+			f  = rt.Field(i)
+			fv = rv.Field(i)
+		)
+
+		if !fv.CanSet() {
+			continue
+		}
+
+		tag, err := parseFieldTag(f.Tag)
+		if err != nil {
+			return err
+		}
+		if tag == nil {
+			// No tag, skip field
+			continue
+		}
+
+		// Reject tagged pointer types
+		if f.Type.Kind() == reflect.Ptr {
+			return fmt.Errorf("%w: %q", errorPointerField, f.Name)
+		}
+
+		value, key, ok := resolveEnv(serviceName, tag, opt)
+		if tag.Required && !ok && tag.DefaultValue == "" {
+			return fmt.Errorf("env: required env %q not set", tag.Name)
+		}
+		// If not found and no default, leave zero value — except Env[T], which
+		// we still populate to capture VarName.
+		if !ok && tag.DefaultValue == "" {
+			if isEnvWrapperType(f.Type) {
+				v, err := zeroEnvWrapperValue(f.Type, key)
+				if err != nil {
+					return err
+				}
+
+				assignField(fv, v)
+			}
+
+			continue
+		}
+
+		v, err := coerceValue(f, value, key)
+		if err != nil {
+			return err
+		}
+
+		assignField(fv, v)
+	}
+
+	return nil
+}
+
+func validateTarget(target interface{}) (reflect.Value, reflect.Type, error) {
+	if target == nil {
+		return reflect.Value{}, nil, errorNilTarget
+	}
+
+	rv := reflect.ValueOf(target)
+	if rv.Kind() != reflect.Ptr || rv.IsNil() {
+		return reflect.Value{}, nil, errorNonPtrTarget
+	}
+
+	rv = rv.Elem()
+	rt := rv.Type()
+	if rt.Kind() != reflect.Struct {
+		return reflect.Value{}, nil, errorNonStructTarget
+	}
+
+	return rv, rt, nil
+}
+
+func parseFieldTag(tag reflect.StructTag) (*envTag, error) {
+	raw, ok := tag.Lookup("env")
+	if !ok {
+		// Members without tag will be skipped
+		return nil, nil
+	}
+
+	entries := strings.Split(raw, ",")
+	if len(entries) == 0 || strings.TrimSpace(entries[0]) == "" {
+		return nil, errorNoTagName
+	}
+
+	t := &envTag{
+		Name: strings.TrimSpace(entries[0]),
+	}
+
+	for _, entry := range entries[1:] {
+		k, v, ok := strings.Cut(strings.TrimSpace(entry), "=")
+		k = strings.TrimSpace(k)
+
+		switch k {
+		case "required":
+			t.Required = true
+		case "":
+			continue
+		case "default_value":
+			if !ok {
+				return nil, errorDefaultValue
+			}
+
+			t.DefaultValue = trimQuotes(strings.TrimSpace(v))
+		default:
+			return nil, fmt.Errorf("env: unknown tag attribute %q", k)
+		}
+	}
+
+	return t, nil
+}
+
+func trimQuotes(s string) string {
+	if len(s) < 2 {
+		return s
+	}
+
+	if s[0] != '"' || s[len(s)-1] != '"' {
+		return s
+	}
+
+	return s[1 : len(s)-1]
+}
+
+func resolveEnv(serviceName service.Name, tag *envTag, options Options) (string, string, bool) {
+	key := serviceName.String() + options.Separator + tag.Name
+
+	if value, ok := os.LookupEnv(key); ok {
+		return value, key, true
+	}
+
+	if value, ok := os.LookupEnv(tag.Name); ok {
+		return value, tag.Name, true
+	}
+
+	return tag.DefaultValue, tag.Name, false
+}
+
+func isEnvWrapperType(t reflect.Type) bool {
+	if t == envStringType {
+		return true
+	}
+	if t == envInt32Type {
+		return true
+	}
+
+	return false
+}
+
+func zeroEnvWrapperValue(t reflect.Type, key string) (reflect.Value, error) {
+	if t == envStringType {
+		return reflect.ValueOf(Env[string]{
+			value:   "",
+			varName: key,
+		}), nil
+	}
+	if t == envInt32Type {
+		return reflect.ValueOf(Env[int32]{
+			value:   0,
+			varName: key,
+		}), nil
+	}
+
+	return reflect.Value{}, fmt.Errorf("unsupported Env wrapper type %v", t)
+}
+
+func coerceValue(sf reflect.StructField, value string, key string) (reflect.Value, error) {
+	t := sf.Type
+
+	// Check for Env[T] types
+	if t == envStringType {
+		return reflect.ValueOf(Env[string]{
+			value:   value,
+			varName: key,
+		}), nil
+	}
+	if t == envInt32Type {
+		n, err := parseInt(value, 32)
+		if err != nil {
+			return reflect.Value{}, err
+		}
+
+		return reflect.ValueOf(Env[int32]{
+			value:   int32(n),
+			varName: key,
+		}), nil
+	}
+
+	// time.Duration
+	if t == timeDurationType {
+		d, err := time.ParseDuration(strings.TrimSpace(value))
+		if err != nil {
+			return reflect.Value{}, err
+		}
+
+		return reflect.ValueOf(d), nil
+	}
+
+	// Check if field implements UnmarshalText
+	if implementsTextUnmarshaler(t) {
+		return unmarshalTextValue(t, value)
+	}
+
+	// Scalar types
+	switch t.Kind() {
+	case reflect.String:
+		return reflect.ValueOf(value), nil
+	case reflect.Bool:
+		return parseBool(value)
+	case reflect.Int, reflect.Int32, reflect.Int64:
+		return parseIntValue(value, t.Kind())
+	case reflect.Uint, reflect.Uint32, reflect.Uint64:
+		return parseUintValue(value, t.Kind())
+	case reflect.Float32, reflect.Float64:
+		return parseFloatValue(value, t.Kind())
+	default:
+	}
+
+	return reflect.Value{}, fmt.Errorf("unsupported type %v", t)
+}
+
+func implementsTextUnmarshaler(t reflect.Type) bool {
+	if t.Implements(textUnmarshalerType) {
+		return true
+	}
+
+	pt := reflect.PointerTo(t)
+	return pt.Implements(textUnmarshalerType)
+}
+
+func unmarshalTextValue(t reflect.Type, raw string) (reflect.Value, error) {
+	if !reflect.PointerTo(t).Implements(textUnmarshalerType) {
+		return reflect.Value{}, fmt.Errorf("%v does not implement encoding.TextUnmarshaler", t)
+	}
+
+	var (
+		ptr = reflect.New(t)
+		u   = ptr.Interface().(encoding.TextUnmarshaler)
+	)
+
+	if err := u.UnmarshalText([]byte(raw)); err != nil {
+		return reflect.Value{}, err
+	}
+
+	return ptr.Elem(), nil
+}
+
+func parseBool(s string) (reflect.Value, error) {
+	b, err := strconv.ParseBool(s)
+	if err != nil {
+		return reflect.Value{}, err
+	}
+
+	return reflect.ValueOf(b), nil
+}
+
+func parseIntValue(s string, k reflect.Kind) (reflect.Value, error) {
+	bitSize := 0
+	if k == reflect.Int32 {
+		bitSize = 32
+	}
+	if k == reflect.Int64 {
+		bitSize = 64
+	}
+
+	n, err := parseInt(s, bitSize)
+	if err != nil {
+		return reflect.Value{}, err
+	}
+
+	if bitSize == 0 {
+		return reflect.ValueOf(int(n)), nil
+	}
+	if bitSize == 32 {
+		return reflect.ValueOf(int32(n)), nil
+	}
+
+	return reflect.ValueOf(n), nil
+}
+
+func parseInt(s string, bitSize int) (int64, error) {
+	n, err := strconv.ParseInt(strings.TrimSpace(s), 10, bitSize)
+	if err != nil {
+		return 0, err
+	}
+
+	return n, nil
+}
+
+func parseUintValue(s string, k reflect.Kind) (reflect.Value, error) {
+	bitSize := 0
+	if k == reflect.Uint32 {
+		bitSize = 32
+	}
+	if k == reflect.Uint64 {
+		bitSize = 64
+	}
+
+	n, err := strconv.ParseUint(strings.TrimSpace(s), 10, bitSize)
+	if err != nil {
+		return reflect.Value{}, err
+	}
+
+	if bitSize == 0 {
+		return reflect.ValueOf(uint(n)), nil
+	}
+	if bitSize == 32 {
+		return reflect.ValueOf(uint32(n)), nil
+	}
+
+	return reflect.ValueOf(n), nil
+}
+
+func parseFloatValue(s string, k reflect.Kind) (reflect.Value, error) {
+	bitSize := 64
+	if k == reflect.Float32 {
+		bitSize = 32
+	}
+
+	f, err := strconv.ParseFloat(strings.TrimSpace(s), bitSize)
+	if err != nil {
+		return reflect.Value{}, fmt.Errorf("parse float: %w", err)
+	}
+
+	if bitSize == 32 {
+		return reflect.ValueOf(float32(f)), nil
+	}
+
+	return reflect.ValueOf(f), nil
+}
+
+func assignField(dst reflect.Value, src reflect.Value) {
+	if !src.IsValid() {
+		return
+	}
+
+	if src.Type().AssignableTo(dst.Type()) {
+		dst.Set(src)
+		return
+	}
+
+	if src.Type().ConvertibleTo(dst.Type()) {
+		dst.Set(src.Convert(dst.Type()))
+		return
+	}
 }
