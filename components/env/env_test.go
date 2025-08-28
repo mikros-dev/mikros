@@ -212,7 +212,7 @@ func TestLoad(t *testing.T) {
 		a.ErrorContains(err, "env: pointer-typed fields are not supported; use value type or Env[T]")
 	})
 
-	t.Run("targe with convertible types", func(t *testing.T) {
+	t.Run("target with convertible types", func(t *testing.T) {
 		type Port int32
 		type Label string
 
