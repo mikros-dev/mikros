@@ -36,7 +36,7 @@ type Options struct {
 	Separator string
 }
 
-// Env is a type that raps an environment-backed value, exposing both its value
+// Env is a type that wraps an environment-backed value, exposing both its value
 // and the concrete env var name used to populate it.
 type Env[T any] struct {
 	value   T

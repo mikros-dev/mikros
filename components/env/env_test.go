@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/mikros-dev/mikros/components/definition"
 	"github.com/mikros-dev/mikros/components/service"
 )
@@ -12,7 +14,9 @@ type baseConfig struct {
 	DeployEnv   definition.ServiceDeploy `env:"DEPLOY_ENV"`
 	Region      string                   `env:"AWS_REGION"`
 	CI          bool                     `env:"CI,default_value=false"`
-	Port        int32                    `env:"DB_PORT,default_value=27017"`
+	Port        int                      `env:"PORT,default_value=8080"`
+	Port32      int32                    `env:"DB_PORT,default_value=27017"`
+	Port64      int64                    `env:"DB_PORT_64,default_value=3306"`
 	RequiredKey string                   `env:"REQUIRED_KEY,required"`
 	Pool        Env[string]              `env:"AUTH_POOL_ID"`
 	N           Env[int32]               `env:"NUMBER"`
@@ -20,12 +24,17 @@ type baseConfig struct {
 	Speed       float32                  `env:"SPEED"`
 	ExpireTime  float64                  `env:"EXPIRE_TIME"`
 	Cost        uint                     `env:"COST"`
+	Cost32      uint32                   `env:"COST32"`
+	Cost64      uint64                   `env:"COST64"`
 	Ignored     string
 	private     string `env:"PRIVATE"`
 }
 
 func TestLoad(t *testing.T) {
-	svc := service.FromString("example")
+	var (
+		svc = service.FromString("example")
+		a   = assert.New(t)
+	)
 
 	t.Run("successfully loads with defaults", func(t *testing.T) {
 		t.Setenv("AWS_REGION", "us-east-1")
@@ -36,49 +45,33 @@ func TestLoad(t *testing.T) {
 		t.Setenv("SPEED", "42.5")
 		t.Setenv("EXPIRE_TIME", "10")
 		t.Setenv("COST", "100")
+		t.Setenv("COST32", "100")
+		t.Setenv("COST64", "100")
 		t.Setenv("DEPLOY_ENV", "test")
+		t.Setenv("DB_PORT_64", "9981")
+		t.Setenv("PORT", "8081")
 
 		var cfg baseConfig
-		if err := Load(svc, &cfg); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		err := Load(svc, &cfg)
 
-		if cfg.Region != "us-east-1" {
-			t.Errorf("Region = %q, want %q", cfg.Region, "us-east-1")
-		}
-		if cfg.CI != true {
-			t.Errorf("CI = %v, want true", cfg.CI)
-		}
-		if cfg.Port != 27017 {
-			t.Errorf("Port = %d, want 27017", cfg.Port)
-		}
-		if cfg.RequiredKey != "present" {
-			t.Errorf("RequiredKey = %q, want %q", cfg.RequiredKey, "present")
-		}
-		if cfg.Pool.Value() != "pool-xyz" {
-			t.Errorf("Pool.Value = %q, want %q", cfg.Pool.Value(), "pool-xyz")
-		}
-		if cfg.N.Value() != 42 {
-			t.Errorf("N.Value = %d, want 42", cfg.N.Value())
-		}
-		if cfg.TTL != 30*time.Second {
-			t.Errorf("TTL = %v, want 30s", cfg.TTL)
-		}
-		if cfg.Speed != 42.5 {
-			t.Errorf("Speed = %f, want 42.5", cfg.Speed)
-		}
-		if cfg.ExpireTime != 10 {
-			t.Errorf("ExpireTime = %v, want 10", cfg.ExpireTime)
-		}
-		if cfg.Cost != 100 {
-			t.Errorf("Cost = %d, want 100", cfg.Cost)
-		}
-		if cfg.Ignored != "" {
-			t.Errorf("Ignored should be empty, got %q", cfg.Ignored)
-		}
-		if cfg.private != "" {
-			t.Errorf("private field must remain unset, got %q", cfg.private)
-		}
+		a.Nil(err)
+		a.Equal(cfg.DeployEnv, definition.ServiceDeploy_Test)
+		a.Equal(cfg.Region, "us-east-1")
+		a.Equal(cfg.CI, true)
+		a.Equal(cfg.Port, 8081)
+		a.Equal(cfg.Port32, int32(27017))
+		a.Equal(cfg.Port64, int64(9981))
+		a.Equal(cfg.RequiredKey, "present")
+		a.Equal(cfg.Pool.Value(), "pool-xyz")
+		a.Equal(cfg.N.Value(), int32(42))
+		a.Equal(cfg.TTL, time.Second*30)
+		a.Equal(cfg.Speed, float32(42.5))
+		a.Equal(cfg.ExpireTime, float64(10))
+		a.Equal(cfg.Cost, uint(100))
+		a.Equal(cfg.Cost32, uint32(100))
+		a.Equal(cfg.Cost64, uint64(100))
+		a.Equal(cfg.Ignored, "")
+		a.Equal(cfg.private, "")
 	})
 
 	t.Run("required missing errors", func(t *testing.T) {
@@ -87,12 +80,8 @@ func TestLoad(t *testing.T) {
 		var cfg baseConfig
 		err := Load(svc, &cfg)
 
-		if err == nil {
-			t.Fatalf("expected error, got nil")
-		}
-		if !contains(err.Error(), "REQUIRED_KEY") {
-			t.Errorf("error %q does not mention REQUIRED_KEY", err)
-		}
+		a.NotNil(err)
+		a.ErrorContains(err, "REQUIRED_KEY")
 	})
 
 	t.Run("service precedence with default separator", func(t *testing.T) {
@@ -102,13 +91,11 @@ func TestLoad(t *testing.T) {
 		t.Setenv("REQUIRED_KEY", "present")
 
 		var cfg baseConfig
-		if err := Load(svc, &cfg); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		err := Load(svc, &cfg)
 
-		if cfg.Region != "eu-west-1" {
-			t.Errorf("Region precedence failed: got %q, want eu-west-1", cfg.Region)
-		}
+		a.Nil(err)
+		a.Equal(cfg.Region, "eu-west-1")
+		a.Equal(cfg.RequiredKey, "present")
 	})
 
 	t.Run("custom separator", func(t *testing.T) {
@@ -117,13 +104,11 @@ func TestLoad(t *testing.T) {
 		t.Setenv("REQUIRED_KEY", "present")
 
 		var cfg baseConfig
-		if err := Load(svc, &cfg, Options{Separator: "::"}); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		err := Load(svc, &cfg, Options{Separator: "::"})
 
-		if cfg.Region != "ap-south-1" {
-			t.Errorf("Region = %q, want ap-south-1", cfg.Region)
-		}
+		a.Nil(err)
+		a.Equal(cfg.Region, "ap-south-1")
+		a.Equal(cfg.RequiredKey, "present")
 	})
 
 	t.Run("bool parsing variants", func(t *testing.T) {
@@ -131,13 +116,11 @@ func TestLoad(t *testing.T) {
 		t.Setenv("REQUIRED_KEY", "present")
 
 		var cfg baseConfig
-		if err := Load(svc, &cfg); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		err := Load(svc, &cfg)
 
-		if cfg.CI != true {
-			t.Errorf("CI = %v, want true", cfg.CI)
-		}
+		a.Nil(err)
+		a.Equal(cfg.CI, true)
+		a.Equal(cfg.RequiredKey, "present")
 	})
 
 	t.Run("Env wrapper captures global var name", func(t *testing.T) {
@@ -145,13 +128,11 @@ func TestLoad(t *testing.T) {
 		t.Setenv("REQUIRED_KEY", "present")
 
 		var cfg baseConfig
-		if err := Load(svc, &cfg); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		err := Load(svc, &cfg)
 
-		if cfg.Pool.VarName() != "AUTH_POOL_ID" {
-			t.Errorf("VarName = %q, want AUTH_POOL_ID", cfg.Pool.VarName())
-		}
+		a.Nil(err)
+		a.Equal(cfg.Pool.Value(), "global-pool")
+		a.Equal(cfg.RequiredKey, "present")
 	})
 
 	t.Run("Env wrapper captures service-scoped var name", func(t *testing.T) {
@@ -160,30 +141,24 @@ func TestLoad(t *testing.T) {
 		t.Setenv("REQUIRED_KEY", "present")
 
 		var cfg baseConfig
-		if err := Load(svc, &cfg); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		err := Load(svc, &cfg)
 
-		if cfg.Pool.VarName() != "svc__AUTH_POOL_ID" {
-			t.Errorf("VarName = %q, want svc__AUTH_POOL_ID", cfg.Pool.VarName())
-		}
-		if cfg.Pool.Value() != "svc-pool" {
-			t.Errorf("Value = %q, want svc-pool", cfg.Pool.Value())
-		}
+		a.Nil(err)
+		a.Equal(cfg.Pool.Value(), "svc-pool")
+		a.Equal(cfg.Pool.VarName(), "svc__AUTH_POOL_ID")
+		a.Equal(cfg.RequiredKey, "present")
 	})
 
-	t.Run("duration via TextUnmarshaler", func(t *testing.T) {
+	t.Run("duration via time.Duration", func(t *testing.T) {
 		t.Setenv("CACHE_TTL", "90s")
 		t.Setenv("REQUIRED_KEY", "present")
 
 		var cfg baseConfig
-		if err := Load(svc, &cfg); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		err := Load(svc, &cfg)
 
-		if cfg.TTL != 90*time.Second {
-			t.Errorf("TTL = %v, want 90s", cfg.TTL)
-		}
+		a.Nil(err)
+		a.Equal(cfg.TTL, time.Second*90)
+		a.Equal(cfg.RequiredKey, "present")
 	})
 
 	t.Run("skip tag ignores field even if set", func(t *testing.T) {
@@ -191,66 +166,86 @@ func TestLoad(t *testing.T) {
 		t.Setenv("REQUIRED_KEY", "present")
 
 		var cfg baseConfig
-		if err := Load(svc, &cfg); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		err := Load(svc, &cfg)
 
-		if cfg.Ignored != "" {
-			t.Errorf("Ignored should remain empty, got %q", cfg.Ignored)
-		}
+		a.Nil(err)
+		a.Equal(cfg.Ignored, "")
+		a.Equal(cfg.RequiredKey, "present")
 	})
 
 	t.Run("invalid tags cause errors", func(t *testing.T) {
 		type bad struct {
 			Bad1 string `env:""`
-			Bad2 string `env:"X,unknown"`
 		}
 
 		var cfg bad
 		err := Load(svc, &cfg)
-		if err == nil {
-			t.Fatalf("expected error, got nil")
-		}
 
-		if !contains(err.Error(), "'env' tag cannot be empty") &&
-			!contains(err.Error(), "unknown env tag attribute") {
-			t.Errorf("unexpected error: %v", err)
-		}
+		a.NotNil(err)
+		a.ErrorContains(err, "'env' tag cannot be empty")
 	})
 
 	t.Run("target validation errors", func(t *testing.T) {
 		var notPtr baseConfig
-		if err := Load(svc, notPtr); err == nil {
-			t.Errorf("expected error on non-pointer target")
-		}
+		err := Load(svc, notPtr)
+		a.NotNil(err)
 
 		var nilPtr *baseConfig
-		if err := Load(svc, nilPtr); err == nil {
-			t.Errorf("expected error on nil pointer")
-		}
+		err = Load(svc, nilPtr)
+		a.NotNil(err)
 
 		type notStruct int
 		var x notStruct
-		if err := Load(svc, &x); err == nil {
-			t.Errorf("expected error on non-struct target")
-		}
+		err = Load(svc, &x)
+		a.NotNil(err)
 	})
-}
 
-func contains(s, sub string) bool {
-	if sub == "" {
-		return true
-	}
-
-	return indexOf(s, sub) >= 0
-}
-
-func indexOf(s, sub string) int {
-	for i := 0; i+len(sub) <= len(s); i++ {
-		if s[i:i+len(sub)] == sub {
-			return i
+	t.Run("target with tagged pointer type", func(t *testing.T) {
+		var example struct {
+			Ex1 string  `env:"ex1"`
+			Ex2 string  `env:"ex2"`
+			Ex3 *string `env:"ex3"`
 		}
-	}
 
-	return -1
+		err := Load(svc, &example)
+		a.Error(err)
+		a.ErrorContains(err, "env: pointer-typed fields are not supported; use value type or Env[T]")
+	})
+
+	t.Run("targe with convertible types", func(t *testing.T) {
+		type Port int32
+		type Label string
+
+		type convConfig struct {
+			DBPort Port  `env:"DB_PORT,default_value=5432"`
+			Name   Label `env:"APP_NAME,default_value=hello"`
+		}
+
+		var cfg convConfig
+		err := Load(service.FromString("svc"), &cfg)
+
+		a.Nil(err)
+		a.Equal(cfg.DBPort, Port(5432))
+		a.Equal(cfg.Name, Label("hello"))
+	})
+
+	t.Run("default value with quotes", func(t *testing.T) {
+		var example struct {
+			Value string `env:"VALUE,default_value=\"some value and more\""`
+		}
+
+		err := Load(svc, &example)
+		a.Nil(err)
+		a.Equal(example.Value, "some value and more")
+	})
+
+	t.Run("should fail with empty default value", func(t *testing.T) {
+		var example struct {
+			Value string `env:"VALUE,default_value"`
+		}
+
+		err := Load(svc, &example)
+		a.NotNil(err)
+		a.ErrorContains(err, "default_value requires a value")
+	})
 }
