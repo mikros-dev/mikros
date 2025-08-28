@@ -187,8 +187,6 @@ func parseFieldTag(tag reflect.StructTag) (*envTag, error) {
 			}
 
 			t.DefaultValue = trimQuotes(strings.TrimSpace(v))
-		default:
-			return nil, fmt.Errorf("env: unknown tag attribute %q", k)
 		}
 	}
 
