@@ -15,9 +15,9 @@ const (
 	contextKeyName = "service-context-"
 )
 
-// ServiceContext is an object that is stored inside a service RPC/HTTP handler
-// context.Context in order to provide information at all source levels, such
-// as, the logger.
+// ServiceContext is an object stored inside a service RPC/HTTP handler
+// context.Context to provide information at all source levels, such as, the
+// logger.
 type ServiceContext struct {
 	values map[string]string
 }
