@@ -1,5 +1,9 @@
 package definition
 
+import (
+	"strings"
+)
+
 type serviceTypeCtx struct{}
 
 type ServiceType struct {
@@ -63,6 +67,24 @@ func (e ServiceDeploy) FromString(in string) ServiceDeploy {
 	}
 
 	return ServiceDeploy_Unknown
+
+}
+
+func (e *ServiceDeploy) UnmarshalText(text []byte) error {
+	switch strings.ToLower(string(text)) {
+	case "prod":
+		*e = ServiceDeploy_Production
+	case "test":
+		*e = ServiceDeploy_Test
+	case "dev":
+		*e = ServiceDeploy_Development
+	case "local":
+		*e = ServiceDeploy_Local
+	default:
+		*e = ServiceDeploy_Unknown
+	}
+
+	return nil
 }
 
 // SupportedServiceTypes gives a slice of all supported service types.
