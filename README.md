@@ -1,8 +1,14 @@
-# mikro\_s
+# mikros
+
+[![Go Reference](https://pkg.go.dev/badge/github.com/mikros-dev/mikros.svg)](https://pkg.go.dev/github.com/mikros-dev/mikros)
+[![Docs](https://img.shields.io/badge/docs-website-blue)](https://mikros.dev)
+[![Go Report Card](https://goreportcard.com/badge/github.com/mikros-dev/mikros)](https://goreportcard.com/report/github.com/mikros-dev/mikros)
+[![GitHub release](https://img.shields.io/github/v/release/mikros-dev/mikros?sort=semver)](https://github.com/mikros-dev/mikros/releases)
+[![License](https://img.shields.io/github/license/mikros-dev/mikros)](https://github.com/mikros-dev/mikros/blob/main/LICENSE)
 
 ## About
 
-`mikro_s` is a Go framework for creating applications.
+`mikros` is a Go framework for creating applications.
 
 ## Introduction
 
@@ -21,7 +27,7 @@ in Go, of the following categories:
 
 ### Service
 
-Service, here, is considered an application that may or may not remain running
+Service here is considered an application that may or may not remain running
 indefinitely, performing some type of task or waiting for commands to activate it.
 
 The framework consists of an SDK that facilitates the creation of these applications
@@ -31,7 +37,7 @@ flexibility, allowing these applications to also be customized when necessary.
 
 Building a service using the framework's SDK must adhere to the following points:
 
-* Have a struct where mandatory methods according to its category must be implemented;
+* Having a structure where mandatory methods according to its category must be implemented;
 * Initialize the SDK correctly;
 * Have a configuration file, called `service.toml`, containing information about itself and its functionalities.
 
@@ -92,7 +98,7 @@ language = "go"
 product = "Matrix"
 ```
 
-When executed, it outputs the following (with a different time according the execution):
+When executed, it outputs the following (with a different time according to the execution):
 
 ```bash
 {"time":"2024-02-09T07:54:57.159265-03:00","level":"INFO","msg":"starting service","service.name":"script-example","service.type":"script","service.version":"v1.0.0","service.env":"local","service.product":"Matrix"}
