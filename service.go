@@ -33,7 +33,7 @@ import (
 	"github.com/mikros-dev/mikros/internal/services"
 )
 
-// Service is the object which represents a service application.
+// Service is the object that represents a service application.
 type Service struct {
 	serviceOptions  map[string]options.ServiceOptions
 	runtimeFeatures map[string]interface{}
@@ -348,7 +348,7 @@ func (s *Service) initializeServiceInternals(ctx context.Context, srv interface{
 	}
 
 	// Call lifecycle.OnStart before validating the service structure to
-	// allow its fields to be initialized at this point. Also, ensures that
+	// allow its fields to be initialized at this point. Also ensures that
 	// everything declared inside the main struct service is initialized to
 	// be used inside the callback.
 	if err := lifecycle.OnStart(ctx, srv, &lifecycle.LifecycleOptions{
@@ -583,17 +583,17 @@ func (s *Service) stopDependentServices(ctx context.Context) error {
 
 // Logger gives access to the logger API from inside a service context.
 //
-// Deprecated: This method is deprecated and should not be used anymore. In
-// order to access the log API one must declare an internal service feature
-// and initialize it using struct tags.
+// Deprecated: This method is deprecated and should not be used anymore. To access
+// the log API, one must declare an internal service feature and initialize it
+// using struct tags.
 func (s *Service) Logger() flogger.LoggerAPI {
 	return s.logger
 }
 
 // Errors gives access to the errors API from inside a service context.
 //
-// Deprecated: This method is deprecated and should not be used anymore. In
-// order to access the error API one must declare an internal service feature
+// Deprecated: This method is deprecated and should not be used anymore. To access
+// the error API, one must declare an internal service feature
 // and initialize it using struct tags.
 func (s *Service) Errors() ferrors.ErrorAPI {
 	return s.errors
@@ -613,18 +613,18 @@ func (s *Service) abort(ctx context.Context, err *merrors.AbortError) {
 
 // ServiceName gives back the service name.
 //
-// Deprecated: This method is deprecated and should not be used anymore. In
-// order to know the current service name, one must declare an internal
-// service feature for the definitions and initialize it using struct tags.
+// Deprecated: This method is deprecated and should not be used anymore. To know
+// the current service name, one must declare an internal service feature for
+// the definitions and initialize it using struct tags.
 func (s *Service) ServiceName() string {
 	return s.definitions.ServiceName().String()
 }
 
 // DeployEnvironment exposes the current service deploymentEnv environment.
 //
-// Deprecated: This method is deprecated and should not be used anymore. In
-// order to know this information, one must declare an internal service
-// feature for the environment variables and initialize it using struct tags.
+// Deprecated: This method is deprecated and should not be used anymore. To know
+// this information, one must declare an internal service feature for the
+// environment variables and initialize it using struct tags.
 func (s *Service) DeployEnvironment() definition.ServiceDeploy {
 	return s.envs.DeploymentEnv()
 }
@@ -665,7 +665,7 @@ func (s *Service) Feature(ctx context.Context, target interface{}) error {
 		if externalApi, ok := feature.(plugin.FeatureExternalAPI); ok {
 			// If the feature has implemented the plugin.FeatureExternalAPI,
 			// we give priority for it, trying to check if its returned
-			// interface{} has the desired target interface. This way we let the
+			// interface{} has the desired target interface. This way, we let the
 			// feature decide if it is going to implement its public interface
 			// itself or of it will return something that implements.
 			f = reflect.ValueOf(externalApi.ServiceAPI())
@@ -688,9 +688,9 @@ func (s *Service) Feature(ctx context.Context, target interface{}) error {
 
 // Env gives access to the framework environment variables public API.
 //
-// Deprecated: This method is deprecated and should not be used anymore. In
-// order to load environment variable values one must declare an internal service feature
-// and initialize it using struct tags.
+// Deprecated: This method is deprecated and should not be used anymore. To load
+// environment variable values, one must declare an internal service feature and
+// initialize it using struct tags.
 func (s *Service) Env(name string) string {
 	v, ok := s.envs.DefinedEnv(name)
 	if !ok {
@@ -714,9 +714,9 @@ func (s *Service) SetupTest(ctx context.Context, t *testing.Testing) *ServiceTes
 // Note that these settings correspond to everything under the [service]
 // object inside the TOML file.
 //
-// Deprecated: This method is deprecated and should not be used anymore. In
-// order to load custom service definitions, use the tag `mikros:"definitions"`
-// with a structure member inside the service.
+// Deprecated: This method is deprecated and should not be used anymore. To load
+// custom service definitions, use the tag `mikros:"definitions"` with a structure
+// member inside the service.
 func (s *Service) CustomDefinitions() map[string]interface{} {
 	return s.definitions.Service
 }

@@ -26,7 +26,7 @@ type GlobalEnvs struct {
 	HttpPort int32 `env:"MIKROS_HTTP_PORT,default_value=8080"`
 }
 
-// postLoad is where any internal change must happen according to the current
+// postLoad is where any internal change must happen, according to the current
 // environment values previously loaded.
 func (e *GlobalEnvs) postLoad() {
 	// Checks our real deployment environment

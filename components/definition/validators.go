@@ -58,7 +58,7 @@ func validatePort(port string) bool {
 }
 
 // ensureScriptTypeIsUnique validates if the 'script' service type is alone in
-// tht list.
+// the list.
 func ensureScriptTypeIsUnique(_ context.Context, fl validator.FieldLevel) bool {
 	if list, ok := fl.Field().Interface().([]string); ok {
 		index := slices.Index(list, ServiceType_Script.String())

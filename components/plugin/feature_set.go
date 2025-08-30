@@ -29,7 +29,7 @@ func NewFeatureSet() *FeatureSet {
 	}
 }
 
-// InitializeAll initializes all previously registered feature (in the order
+// InitializeAll initializes all previously registered features (in the order
 // they were registered).
 func (s *FeatureSet) InitializeAll(ctx context.Context, options *InitializeOptions) error {
 	for _, feature := range s.orderedFeatures {

@@ -9,7 +9,7 @@ import (
 type ServiceLifecycleStarter interface {
 	// OnStart is a method called right before the service enters its (infinite)
 	// execution mode, when Service.Start API is called. When called, all features
-	// declared inside the service main structure are already initialized and
+	// declared inside the main structure service are already initialized and
 	// available to use.
 	//
 	// It is the right place for the service to initialize its external resources

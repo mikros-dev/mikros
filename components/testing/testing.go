@@ -108,7 +108,7 @@ func (t *Testing) T() *testing.T {
 	return t.t
 }
 
-// Assert gives access to an assert object, providing an API to compare values
+// Assert gives access to an assertion object, providing an API to compare values
 // between variables or objects.
 func (t *Testing) Assert() *assert.Assertions {
 	return t.assert

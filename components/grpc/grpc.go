@@ -73,7 +73,7 @@ func gRPCClientUnaryInterceptor(svcCtx *mcontext.ServiceContext, tracker behavio
 		if tracker != nil {
 			trackId := tracker.Generate()
 
-			// If we already have a tracker ID, we need to use for subsequent calls.
+			// If we already have a tracker ID, we'll use it for later calls.
 			if trk, ok := tracker.Retrieve(ctx); ok {
 				trackId = trk
 			}
