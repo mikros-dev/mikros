@@ -92,7 +92,7 @@ type FeatureExternalAPI interface {
 	ServiceAPI() interface{}
 }
 
-// FeatureInternalAPI is a behaviour that a feature can have to provide an API
+// FeatureInternalAPI is a behavior that a feature can have to provide an API
 // to be used inside the framework or its extensions.
 type FeatureInternalAPI interface {
 	FrameworkAPI() interface{}
@@ -107,7 +107,7 @@ type FeatureTester interface {
 
 	// Teardown is responsible for cleaning up all resources allocated when
 	// Setup was called before. It's important to notice here that after this
-	// call a new call to the Setup API must be made to run a new test.
+	// call, a new call to the Setup API must be made to run a new test.
 	Teardown(ctx context.Context, t *testing.Testing)
 
 	// DoTest is where the feature executes its specific tests previously

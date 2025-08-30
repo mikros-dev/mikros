@@ -112,7 +112,7 @@ func (s *Server) validate(opt *plugin.ServiceOptions) error {
 // initializing its routes, authentication, CORS and everything, letting it
 // in a position to be only started (put in execution) later.
 func (s *Server) initializeHttpServerInternals(ctx context.Context, opt *plugin.ServiceOptions) error {
-	// Disables this router auto fix-path feature in order to return a proper
+	// Disables this router auto fix-path feature to return a proper
 	// 404 when some client uses a wrong endpoint.
 	httpRouter := router.New()
 	httpRouter.RedirectFixedPath = false

@@ -13,7 +13,7 @@ import (
 type NewServiceOptions struct {
 	// Service must have all required service options according the types
 	// defined in the 'service.toml' file. The same type name should be
-	// used as key here.
+	// used as a key here.
 	Service map[string]ServiceOptions `validate:"required"`
 
 	// RunTimeFeatures must hold everything that will only be available

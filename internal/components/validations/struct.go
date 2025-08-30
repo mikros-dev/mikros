@@ -1,10 +1,10 @@
 // Package validations adds an internal framework API to validate structures
-// without tag annotations. Despite the fact it also has support for tag
-// annotations in order to skip validation for specific structure members.
+// without tag annotations. Despite the fact, it also has support for tag
+// annotations to skip validation for specific structure members.
 //
 // The main usage for this API is to validate a service main structure,
-// usually the place where its main API are implemented (RPCs and subscription
-// handlers), in an automatic way to avoid using uninitialized members while
+// usually the place where its main API is implemented (RPCs and subscription
+// handlers), automatically to avoid using uninitialized members while
 // the service is running.
 package validations
 

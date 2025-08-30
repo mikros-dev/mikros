@@ -47,7 +47,7 @@ func NewServiceEnvs(defs *definition.Definitions) (*ServiceEnvs, error) {
 }
 
 // loadDefinedEnvVars loads envs defined in the 'service.toml' file as mandatory
-// values, í.e., they must be available when the service starts.
+// values. They must be available when the service starts.
 func loadDefinedEnvVars(defs *definition.Definitions) (map[string]string, error) {
 	var (
 		envs = make(map[string]string)

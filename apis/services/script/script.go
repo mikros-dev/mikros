@@ -11,7 +11,7 @@ type ScriptApi interface {
 	// only once and the service terminates.
 	//
 	// Services should avoid blocking this function since there are other
-	// type of services for this purpose.
+	// services for this purpose.
 	Run(ctx context.Context) error
 
 	// Cleanup must clean or finish anything that was initialized or any resource

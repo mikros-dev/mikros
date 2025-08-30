@@ -159,7 +159,7 @@ func validateTarget(target interface{}) (reflect.Value, reflect.Type, error) {
 func parseFieldTag(tag reflect.StructTag) (*envTag, error) {
 	raw, ok := tag.Lookup("env")
 	if !ok {
-		// Members without tag will be skipped
+		// Members without a tag will be skipped
 		return nil, nil
 	}
 
