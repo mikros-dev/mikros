@@ -1,7 +1,9 @@
 # mikros
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/mikros-dev/mikros/main/.assets/images/go-logo.png" alt="mikros logo" width="650"/>
+  <a href="https://mikros.dev">
+    <img src="https://raw.githubusercontent.com/mikros-dev/mikros/main/.assets/images/go-logo.png" alt="mikros logo" width="650"/>
+  </a>
 </p>
 
 <h3 align="center">mikros is a Go framework for creating applications.</h3>
