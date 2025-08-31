@@ -1,14 +1,18 @@
 # mikros
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/mikros-dev/mikros.svg)](https://pkg.go.dev/github.com/mikros-dev/mikros)
-[![Docs](https://img.shields.io/badge/docs-website-blue)](https://mikros.dev)
-[![Go Report Card](https://goreportcard.com/badge/github.com/mikros-dev/mikros)](https://goreportcard.com/report/github.com/mikros-dev/mikros)
-[![GitHub release](https://img.shields.io/github/v/release/mikros-dev/mikros?sort=semver)](https://github.com/mikros-dev/mikros/releases)
-[![License](https://img.shields.io/github/license/mikros-dev/mikros)](https://github.com/mikros-dev/mikros/blob/main/LICENSE)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/mikros-dev/mikros/main/.assets/images/go-logo.png" alt="mikros logo" width="650"/>
+</p>
 
-## About
+<h3 align="center">mikros is a Go framework for creating applications.</h3>
 
-`mikros` is a Go framework for creating applications.
+<p align="center">
+  <a href="https://pkg.go.dev/github.com/mikros-dev/mikros"><img src="https://pkg.go.dev/badge/github.com/mikros-dev/mikros.svg" alt="Go Reference"></a>
+  <a href="https://mikros.dev"><img src="https://img.shields.io/badge/site-mikros.dev-blue" alt="Docs"></a>
+  <a href="https://goreportcard.com/report/github.com/mikros-dev/mikros"><img src="https://goreportcard.com/badge/github.com/mikros-dev/mikros" alt="Go Report Card"></a>
+  <a href="https://github.com/mikros-dev/mikros/releases"><img src="https://img.shields.io/github/v/release/mikros-dev/mikros?sort=semver" alt="GitHub release"></a>
+  <a href="https://github.com/mikros-dev/mikros/blob/main/LICENSE"><img src="https://img.shields.io/github/license/mikros-dev/mikros" alt="License"></a>
+</p>
 
 ## Introduction
 
