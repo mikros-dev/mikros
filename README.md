@@ -28,7 +28,7 @@ in Go, of the following categories:
 
 * gRPC: an application with an API defined from a [protobuf](https://protobuf.dev) file.
 * HTTP: an HTTP server-type application, with its API defined from a protobuf file.
-* native: a general-purpose application, without a defined API, with the ability to execute any code for long periods.
+* worker: a general-purpose application, without a defined API, with the ability to execute any code for long periods.
 * script: also a general-purpose application, without a defined API, but that only needs to execute a single function and stop.
 
 ### Service

@@ -8,7 +8,7 @@ import (
 func main() {
 	svc := mikros.NewService(&options.NewServiceOptions{
 		Service: map[string]options.ServiceOptions{
-			"native": &options.NativeServiceOptions{},
+			"worker": &options.WorkerServiceOptions{},
 		},
 	})
 

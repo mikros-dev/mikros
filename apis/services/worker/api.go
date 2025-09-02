@@ -1,12 +1,12 @@
-package native
+package worker
 
 import (
 	"context"
 )
 
-// NativeAPI corresponds to the API that a native service must implement in
+// WorkerAPI corresponds to the API that a worker service must implement in
 // its main structure.
-type NativeAPI interface {
+type WorkerAPI interface {
 	// Start must put the service in execution. It can block and wait for some
 	// signal to finish, which should be done in the Stop call. If it needs
 	// a loop, i.e., execute forever, it must be done at the service level.

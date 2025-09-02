@@ -4,8 +4,8 @@ import (
 	"github.com/mikros-dev/mikros/components/plugin"
 	"github.com/mikros-dev/mikros/internal/services/grpc"
 	"github.com/mikros-dev/mikros/internal/services/http"
-	"github.com/mikros-dev/mikros/internal/services/native"
 	"github.com/mikros-dev/mikros/internal/services/script"
+	"github.com/mikros-dev/mikros/internal/services/worker"
 )
 
 func Services() *plugin.ServiceSet {
@@ -13,7 +13,7 @@ func Services() *plugin.ServiceSet {
 
 	services.Register(grpc.New())
 	services.Register(http.New())
-	services.Register(native.New())
+	services.Register(worker.New())
 	services.Register(script.New())
 
 	return services

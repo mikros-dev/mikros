@@ -1,4 +1,4 @@
-module native
+module worker
 
 replace github.com/mikros-dev/mikros => ../../../
 

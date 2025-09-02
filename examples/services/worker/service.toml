@@ -1,5 +1,5 @@
-name = "native"
-types = ["native"]
+name = "worker"
+types = ["worker"]
 version = "v0.1.0"
 language = "go"
 product = "EXAMPLE"
