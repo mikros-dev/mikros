@@ -375,7 +375,7 @@ func (s *Service) initializeRegisteredServices(ctx context.Context, srv interfac
 				return service.ServerPort(s.envs.GrpcPort())
 			}
 
-			if serviceType == definition.ServiceType_HTTP.String() {
+			if serviceType == definition.ServiceType_HTTPSpec.String() {
 				return service.ServerPort(s.envs.HttpPort())
 			}
 		}

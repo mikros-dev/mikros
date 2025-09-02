@@ -1,4 +1,4 @@
-module user
+module grpc
 
 replace github.com/mikros-dev/mikros/examples/protobuf-workspace => ../../../examples/protobuf-workspace
 

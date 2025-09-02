@@ -20,7 +20,7 @@ func New() *Client {
 }
 
 func (c *Client) CanBeInitialized(options *plugin.CanBeInitializedOptions) bool {
-	_, ok := options.Definitions.ServiceTypes()[definition.ServiceType_HTTP]
+	_, ok := options.Definitions.ServiceTypes()[definition.ServiceType_HTTPSpec]
 	return ok
 }
 

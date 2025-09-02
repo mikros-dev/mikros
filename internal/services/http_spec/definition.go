@@ -1,4 +1,4 @@
-package http
+package http_spec
 
 import (
 	"encoding/json"
@@ -15,7 +15,7 @@ type Definitions struct {
 }
 
 func newDefinitions(definitions *definition.Definitions) *Definitions {
-	if currentDefs, ok := definitions.LoadService(definition.ServiceType_HTTP); ok {
+	if currentDefs, ok := definitions.LoadService(definition.ServiceType_HTTPSpec); ok {
 		if b, err := json.Marshal(currentDefs); err == nil {
 			var serviceDefs Definitions
 			if err := json.Unmarshal(b, &serviceDefs); err == nil {

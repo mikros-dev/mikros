@@ -1,4 +1,4 @@
-module user-bff
+module http_spec
 
 replace github.com/mikros-dev/mikros/examples/protobuf-workspace => ../../../examples/protobuf-workspace
 
