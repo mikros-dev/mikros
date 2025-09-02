@@ -3,9 +3,9 @@ package plugin
 import (
 	"context"
 
-	fenv "github.com/mikros-dev/mikros/apis/features/env"
-	ferrors "github.com/mikros-dev/mikros/apis/features/errors"
-	flogger "github.com/mikros-dev/mikros/apis/features/logger"
+	env_api "github.com/mikros-dev/mikros/apis/features/env"
+	errors_api "github.com/mikros-dev/mikros/apis/features/errors"
+	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
 	mcontext "github.com/mikros-dev/mikros/components/context"
 	"github.com/mikros-dev/mikros/components/definition"
 	"github.com/mikros-dev/mikros/components/options"
@@ -21,7 +21,7 @@ type Service interface {
 
 	// Info should return some service informative fields to be logged while
 	// the application is starting.
-	Info() []flogger.Attribute
+	Info() []logger_api.Attribute
 
 	// Initialize must be the place to initialize everything that needs information
 	// from the framework.
@@ -57,13 +57,13 @@ type ServiceOptions struct {
 	Type           definition.ServiceType
 	Name           service.Name
 	Product        string
-	Logger         flogger.LoggerAPI
-	Errors         ferrors.ErrorAPI
+	Logger         logger_api.LoggerAPI
+	Errors         errors_api.ErrorAPI
 	ServiceContext *mcontext.ServiceContext
 	Tags           map[string]string
 	Service        options.ServiceOptions
 	Definitions    *definition.Definitions
 	Features       *FeatureSet
 	ServiceHandler interface{}
-	Env            fenv.EnvAPI
+	Env            env_api.EnvAPI
 }

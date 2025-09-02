@@ -13,6 +13,7 @@ type ServiceType struct {
 var (
 	ServiceType_gRPC     = CreateServiceType("grpc")
 	ServiceType_HTTPSpec = CreateServiceType("http-spec")
+	ServiceType_HTTP     = CreateServiceType("http")
 	ServiceType_Worker   = CreateServiceType("worker")
 	ServiceType_Script   = CreateServiceType("script")
 )
@@ -93,6 +94,7 @@ func SupportedServiceTypes() []string {
 	types := []ServiceType{
 		ServiceType_gRPC,
 		ServiceType_HTTPSpec,
+		ServiceType_HTTP,
 		ServiceType_Worker,
 		ServiceType_Script,
 	}
