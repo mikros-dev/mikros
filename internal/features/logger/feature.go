@@ -3,13 +3,13 @@ package logger
 import (
 	"context"
 
-	flogger "github.com/mikros-dev/mikros/apis/features/logger"
+	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
 	"github.com/mikros-dev/mikros/components/plugin"
 )
 
 type Client struct {
 	plugin.Entry
-	flogger.LoggerAPI
+	logger_api.LoggerAPI
 }
 
 func New() *Client {
@@ -26,8 +26,8 @@ func (c *Client) Initialize(_ context.Context, options *plugin.InitializeOptions
 	return nil
 }
 
-func (c *Client) Fields() []flogger.Attribute {
-	return []flogger.Attribute{}
+func (c *Client) Fields() []logger_api.Attribute {
+	return []logger_api.Attribute{}
 }
 
 func (c *Client) ServiceAPI() interface{} {

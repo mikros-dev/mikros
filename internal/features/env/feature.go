@@ -3,14 +3,14 @@ package env
 import (
 	"context"
 
-	fenv "github.com/mikros-dev/mikros/apis/features/env"
-	flogger "github.com/mikros-dev/mikros/apis/features/logger"
+	env_api "github.com/mikros-dev/mikros/apis/features/env"
+	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
 	"github.com/mikros-dev/mikros/components/plugin"
 )
 
 type Client struct {
 	plugin.Entry
-	envs fenv.EnvAPI
+	envs env_api.EnvAPI
 }
 
 func New() *Client {
@@ -27,8 +27,8 @@ func (c *Client) Initialize(_ context.Context, options *plugin.InitializeOptions
 	return nil
 }
 
-func (c *Client) Fields() []flogger.Attribute {
-	return []flogger.Attribute{}
+func (c *Client) Fields() []logger_api.Attribute {
+	return []logger_api.Attribute{}
 }
 
 func (c *Client) ServiceAPI() interface{} {

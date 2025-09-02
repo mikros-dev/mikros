@@ -8,8 +8,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	ferrors "github.com/mikros-dev/mikros/apis/features/errors"
-	flogger "github.com/mikros-dev/mikros/apis/features/logger"
+	errors_api "github.com/mikros-dev/mikros/apis/features/errors"
+	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
 	"github.com/mikros-dev/mikros/components/logger"
 	"github.com/mikros-dev/mikros/components/service"
 )
@@ -19,8 +19,8 @@ import (
 // interface.
 type ServiceError struct {
 	err        *Error
-	attributes []flogger.Attribute
-	logger     func(ctx context.Context, msg string, attrs ...flogger.Attribute)
+	attributes []logger_api.Attribute
+	logger     func(ctx context.Context, msg string, attrs ...logger_api.Attribute)
 }
 
 type serviceErrorOptions struct {
@@ -29,7 +29,7 @@ type serviceErrorOptions struct {
 	ServiceName string
 	Message     string
 	Destination string
-	Logger      func(ctx context.Context, msg string, attrs ...flogger.Attribute)
+	Logger      func(ctx context.Context, msg string, attrs ...logger_api.Attribute)
 	Error       error
 }
 
@@ -78,12 +78,12 @@ func FromGRPCStatus(st *status.Status, from, to service.Name) error {
 	return &retErr
 }
 
-func (s *ServiceError) WithCode(code ferrors.Code) ferrors.Error {
+func (s *ServiceError) WithCode(code errors_api.Code) errors_api.Error {
 	s.err.Code = code.ErrorCode()
 	return s
 }
 
-func (s *ServiceError) WithAttributes(attrs ...flogger.Attribute) ferrors.Error {
+func (s *ServiceError) WithAttributes(attrs ...logger_api.Attribute) errors_api.Error {
 	s.attributes = attrs
 	return s
 }
@@ -91,7 +91,7 @@ func (s *ServiceError) WithAttributes(attrs ...flogger.Attribute) ferrors.Error 
 func (s *ServiceError) Submit(ctx context.Context) error {
 	// Display the error message onto the output
 	if s.logger != nil {
-		logFields := []flogger.Attribute{withKind(s.err.Kind)}
+		logFields := []logger_api.Attribute{withKind(s.err.Kind)}
 		if s.err.SubLevelError != "" {
 			logFields = append(logFields, logger.String("error.message", s.err.SubLevelError))
 		}
@@ -108,7 +108,7 @@ func (s *ServiceError) Kind() string {
 }
 
 // withKind wraps a Kind into a structured log Attribute.
-func withKind(kind Kind) flogger.Attribute {
+func withKind(kind Kind) logger_api.Attribute {
 	return logger.String("error.kind", string(kind))
 }
 

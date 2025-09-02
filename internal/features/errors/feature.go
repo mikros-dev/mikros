@@ -3,14 +3,14 @@ package errors
 import (
 	"context"
 
-	ferrors "github.com/mikros-dev/mikros/apis/features/errors"
-	flogger "github.com/mikros-dev/mikros/apis/features/logger"
+	errors_api "github.com/mikros-dev/mikros/apis/features/errors"
+	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
 	"github.com/mikros-dev/mikros/components/plugin"
 )
 
 type Client struct {
 	plugin.Entry
-	errors ferrors.ErrorAPI
+	errors errors_api.ErrorAPI
 }
 
 func New() *Client {
@@ -27,8 +27,8 @@ func (c *Client) Initialize(_ context.Context, options *plugin.InitializeOptions
 	return nil
 }
 
-func (c *Client) Fields() []flogger.Attribute {
-	return []flogger.Attribute{}
+func (c *Client) Fields() []logger_api.Attribute {
+	return []logger_api.Attribute{}
 }
 
 func (c *Client) ServiceAPI() interface{} {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	flogger "github.com/mikros-dev/mikros/apis/features/logger"
+	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
 	"github.com/mikros-dev/mikros/apis/services/script"
 	"github.com/mikros-dev/mikros/components/definition"
 	"github.com/mikros-dev/mikros/components/logger"
@@ -34,8 +34,8 @@ func (s *Server) Initialize(ctx context.Context, _ *plugin.ServiceOptions) error
 	return nil
 }
 
-func (s *Server) Info() []flogger.Attribute {
-	return []flogger.Attribute{
+func (s *Server) Info() []logger_api.Attribute {
+	return []logger_api.Attribute{
 		logger.String("service.mode", definition.ServiceType_Script.String()),
 	}
 }

@@ -12,8 +12,8 @@ import (
 	"syscall"
 
 	"github.com/mikros-dev/mikros/apis/behavior"
-	ferrors "github.com/mikros-dev/mikros/apis/features/errors"
-	flogger "github.com/mikros-dev/mikros/apis/features/logger"
+	errors_api "github.com/mikros-dev/mikros/apis/features/errors"
+	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
 	mcontext "github.com/mikros-dev/mikros/components/context"
 	"github.com/mikros-dev/mikros/components/definition"
 	mgrpc "github.com/mikros-dev/mikros/components/grpc"
@@ -134,7 +134,7 @@ func initService(opt *options.NewServiceOptions) (*Service, error) {
 	}, nil
 }
 
-func initServiceErrors(defs *definition.Definitions, log flogger.LoggerAPI) *merrors.Factory {
+func initServiceErrors(defs *definition.Definitions, log logger_api.LoggerAPI) *merrors.Factory {
 	return merrors.NewFactory(merrors.FactoryOptions{
 		ServiceName: defs.ServiceName().String(),
 		Logger:      log,
@@ -495,7 +495,7 @@ func (s *Service) coupleClients(srv interface{}) error {
 
 func (s *Service) printServiceResources(ctx context.Context) {
 	var (
-		fields []flogger.Attribute
+		fields []logger_api.Attribute
 		iter   = s.features.Iterator()
 	)
 
@@ -562,7 +562,7 @@ func (s *Service) stopService(ctx context.Context) {
 	for _, svc := range s.servers {
 		if err := svc.Stop(ctx); err != nil {
 			s.logger.Error(ctx, "could not stop service server",
-				append([]flogger.Attribute{logger.Error(err)}, svc.Info()...)...)
+				append([]logger_api.Attribute{logger.Error(err)}, svc.Info()...)...)
 		}
 	}
 
@@ -586,7 +586,7 @@ func (s *Service) stopDependentServices(ctx context.Context) error {
 // Deprecated: This method is deprecated and should not be used anymore. To access
 // the log API, one must declare an internal service feature and initialize it
 // using struct tags.
-func (s *Service) Logger() flogger.LoggerAPI {
+func (s *Service) Logger() logger_api.LoggerAPI {
 	return s.logger
 }
 
@@ -595,7 +595,7 @@ func (s *Service) Logger() flogger.LoggerAPI {
 // Deprecated: This method is deprecated and should not be used anymore. To access
 // the error API, one must declare an internal service feature
 // and initialize it using struct tags.
-func (s *Service) Errors() ferrors.ErrorAPI {
+func (s *Service) Errors() errors_api.ErrorAPI {
 	return s.errors
 }
 

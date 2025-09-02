@@ -3,18 +3,18 @@ package errors
 import (
 	"fmt"
 
-	ferrors "github.com/mikros-dev/mikros/apis/features/errors"
-	flogger "github.com/mikros-dev/mikros/apis/features/logger"
+	errors_api "github.com/mikros-dev/mikros/apis/features/errors"
+	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
 )
 
 type Factory struct {
 	serviceName string
-	logger      flogger.LoggerAPI
+	logger      logger_api.LoggerAPI
 }
 
 type FactoryOptions struct {
 	ServiceName string
-	Logger      flogger.LoggerAPI
+	Logger      logger_api.LoggerAPI
 }
 
 // NewFactory creates a new Factory object.
@@ -27,7 +27,7 @@ func NewFactory(options FactoryOptions) *Factory {
 
 // RPC sets that the current error is related to an RPC call with another gRPC
 // service (destination).
-func (f *Factory) RPC(err error, destination string) ferrors.Error {
+func (f *Factory) RPC(err error, destination string) errors_api.Error {
 	return newServiceError(&serviceErrorOptions{
 		Kind:        KindRPC,
 		ServiceName: f.serviceName,
@@ -40,7 +40,7 @@ func (f *Factory) RPC(err error, destination string) ferrors.Error {
 
 // InvalidArgument sets that the current error is related to an argument that
 // didn't follow validation rules.
-func (f *Factory) InvalidArgument(err error) ferrors.Error {
+func (f *Factory) InvalidArgument(err error) errors_api.Error {
 	return newServiceError(&serviceErrorOptions{
 		Kind:        KindValidation,
 		ServiceName: f.serviceName,
@@ -52,7 +52,7 @@ func (f *Factory) InvalidArgument(err error) ferrors.Error {
 
 // FailedPrecondition sets that the current error is related to an internal
 // condition which wasn't satisfied.
-func (f *Factory) FailedPrecondition(message string) ferrors.Error {
+func (f *Factory) FailedPrecondition(message string) errors_api.Error {
 	return newServiceError(&serviceErrorOptions{
 		Kind:        KindPrecondition,
 		ServiceName: f.serviceName,
@@ -63,7 +63,7 @@ func (f *Factory) FailedPrecondition(message string) ferrors.Error {
 
 // NotFound sets that the current error is related to some data not being found,
 // probably in the database.
-func (f *Factory) NotFound() ferrors.Error {
+func (f *Factory) NotFound() errors_api.Error {
 	return newServiceError(&serviceErrorOptions{
 		Kind:        KindNotFound,
 		ServiceName: f.serviceName,
@@ -74,7 +74,7 @@ func (f *Factory) NotFound() ferrors.Error {
 
 // Internal sets that the current error is related to an internal service
 // error.
-func (f *Factory) Internal(err error) ferrors.Error {
+func (f *Factory) Internal(err error) errors_api.Error {
 	return newServiceError(&serviceErrorOptions{
 		Kind:        KindInternal,
 		ServiceName: f.serviceName,
@@ -86,7 +86,7 @@ func (f *Factory) Internal(err error) ferrors.Error {
 
 // PermissionDenied sets that the current error is related to a client trying
 // to access a resource without having permission to do so.
-func (f *Factory) PermissionDenied() ferrors.Error {
+func (f *Factory) PermissionDenied() errors_api.Error {
 	return newServiceError(&serviceErrorOptions{
 		Kind:        KindPermission,
 		ServiceName: f.serviceName,
@@ -97,7 +97,7 @@ func (f *Factory) PermissionDenied() ferrors.Error {
 
 // Custom lets a service set a custom error kind for its errors. Internally, it
 // will be treated as an Internal error.
-func (f *Factory) Custom(msg string) ferrors.Error {
+func (f *Factory) Custom(msg string) errors_api.Error {
 	return newServiceError(&serviceErrorOptions{
 		Kind:        KindCustom,
 		ServiceName: f.serviceName,
