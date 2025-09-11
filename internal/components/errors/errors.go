@@ -68,7 +68,7 @@ func FromGRPCStatus(st *status.Status, from, to service.Name) error {
 		}).Submit(context.TODO())
 	}
 
-	// If we're dealing with a non mikros error change it to an Internal
+	// If we're dealing with a non-mikros error, change it to an Internal
 	// one so services can properly handle them.
 	if st.Code() != codes.Unknown {
 		retErr.Kind = KindInternal

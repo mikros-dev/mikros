@@ -67,7 +67,7 @@ type envTag struct {
 //  1. SERVICE<sep>KEY
 //  2. KEY
 //
-// Example: if service is "file", default sep is "__":
+// Example: if service is "file", the default separator is "__":
 //
 //	file__DB_HOST → DB_HOST
 func Load(serviceName service.Name, target interface{}, options ...Options) error {
@@ -111,6 +111,7 @@ func Load(serviceName service.Name, target interface{}, options ...Options) erro
 		if tag.Required && !ok && tag.DefaultValue == "" {
 			return fmt.Errorf("env: required env %q not set", tag.Name)
 		}
+
 		// If not found and no default, leave zero value — except Env[T], which
 		// we still populate to capture VarName.
 		if !ok && tag.DefaultValue == "" {
