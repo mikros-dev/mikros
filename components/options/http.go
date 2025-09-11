@@ -8,6 +8,8 @@ import (
 )
 
 type HttpServiceOptions struct {
+	CORSStrict bool
+
 	// BasePath is a common prefix for all routes
 	BasePath       string
 	ReadTimeout    time.Duration

@@ -3,6 +3,7 @@ package http
 import (
 	"encoding/json"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/creasty/defaults"
@@ -12,7 +13,8 @@ import (
 )
 
 type Definitions struct {
-	DisableAuth    bool          `toml:"disable_auth,omitempty" default:"false" json:"disable_auth"`
+	CORSStrict     bool          `toml:"cors_strict" json:"cors_strict" default:"true"`
+	DisableAuth    bool          `toml:"disable_auth,omitempty" json:"disable_auth" default:"false"`
 	BasePath       string        `toml:"base_path" json:"base_path"`
 	ReadTimeout    time.Duration `toml:"read_timeout" json:"read_timeout" default:"15s"`
 	WriteTimeout   time.Duration `toml:"write_timeout" json:"write_timeout" default:"15s"`
@@ -26,6 +28,11 @@ func newDefinitions(definitions *definition.Definitions, opt *options.HttpServic
 
 	// Apply programmatic options
 	if opt != nil {
+		bp := normalizeBasePath(opt.BasePath)
+		if bp != "" {
+			out.BasePath = bp
+		}
+
 		mergeNonZero(out, opt)
 	}
 
@@ -34,13 +41,30 @@ func newDefinitions(definitions *definition.Definitions, opt *options.HttpServic
 		if b, err := json.Marshal(currentDefs); err == nil {
 			var defs Definitions
 			if json.Unmarshal(b, &defs) == nil {
-				out.DisableAuth = defs.DisableAuth // File DisableAuth always wins
+				// File version of the following settings always wins
+				out.DisableAuth = defs.DisableAuth
+				out.CORSStrict = defs.CORSStrict
+				out.BasePath = normalizeBasePath(defs.BasePath)
+
 				mergeNonZero(out, &defs)
 			}
 		}
 	}
 
 	return out
+}
+
+// normalizeBasePath ensures a leading "/" and trims trailing "/".
+// "" or "/" will normalize to "" (mounted at root).
+func normalizeBasePath(p string) string {
+	p = strings.TrimSpace(p)
+	if p == "" || p == "/" {
+		return ""
+	}
+	if !strings.HasPrefix(p, "/") {
+		p = "/" + p
+	}
+	return strings.TrimRight(p, "/")
 }
 
 // mergeNonZero copies non-zero fields from src into dst by field name.
@@ -68,12 +92,7 @@ func mergeNonZero(dst, src interface{}) {
 			continue
 		}
 
-		kind := df.Kind()
-		switch kind {
-		case reflect.String:
-			if sf.String() != "" {
-				df.SetString(sf.String())
-			}
+		switch df.Kind() {
 		case reflect.Int, reflect.Int32, reflect.Int64:
 			if sf.Int() > 0 {
 				df.SetInt(sf.Int())

@@ -30,7 +30,7 @@ type Server struct {
 	logger            logger_api.LoggerAPI
 	tracing           behavior.Tracer
 	tracker           behavior.Tracker
-	panicRecovery     behavior.Recovery
+	panicRecovery     behavior.HTTPSpecRecovery
 }
 
 func New() *Server {
@@ -165,8 +165,8 @@ func (s *Server) createAuthHandlers(ctx context.Context, opt *plugin.ServiceOpti
 	return authPlugin.AuthHandlers()
 }
 
-func (s *Server) getAuth(opt *plugin.ServiceOptions) behavior.Authenticator {
-	c, err := opt.Features.Feature(options.HttpAuthFeatureName)
+func (s *Server) getAuth(opt *plugin.ServiceOptions) behavior.HTTPSpecAuthenticator {
+	c, err := opt.Features.Feature(options.HttpSpecAuthFeatureName)
 	if err != nil {
 		return nil
 	}
@@ -176,7 +176,7 @@ func (s *Server) getAuth(opt *plugin.ServiceOptions) behavior.Authenticator {
 		return nil
 	}
 
-	return api.FrameworkAPI().(behavior.Authenticator)
+	return api.FrameworkAPI().(behavior.HTTPSpecAuthenticator)
 }
 
 // registerHttpServer binds the HTTP handler into the service. It expects that
@@ -201,7 +201,7 @@ func (s *Server) registerHttpServer(handler fasthttp.RequestHandler, opt *plugin
 	}
 }
 
-func (s *Server) getPanicRecovery(opt *plugin.ServiceOptions) behavior.Recovery {
+func (s *Server) getPanicRecovery(opt *plugin.ServiceOptions) behavior.HTTPSpecRecovery {
 	if s.defs.DisablePanicRecovery {
 		return nil
 	}
@@ -216,10 +216,10 @@ func (s *Server) getPanicRecovery(opt *plugin.ServiceOptions) behavior.Recovery 
 		return nil
 	}
 
-	return api.FrameworkAPI().(behavior.Recovery)
+	return api.FrameworkAPI().(behavior.HTTPSpecRecovery)
 }
 
-func (s *Server) getCors(opt *plugin.ServiceOptions) behavior.Handler {
+func (s *Server) getCors(opt *plugin.ServiceOptions) behavior.CorsHandler {
 	c, err := opt.Features.Feature(options.HttpCorsFeatureName)
 	if err != nil {
 		return nil
@@ -230,7 +230,7 @@ func (s *Server) getCors(opt *plugin.ServiceOptions) behavior.Handler {
 		return nil
 	}
 
-	return api.FrameworkAPI().(behavior.Handler)
+	return api.FrameworkAPI().(behavior.CorsHandler)
 }
 
 func (s *Server) serverRequestHandler(h fasthttp.RequestHandler) fasthttp.RequestHandler {
