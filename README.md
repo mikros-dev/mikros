@@ -121,9 +121,9 @@ When executed, it outputs the following (with a different time according to the 
 
 ## Roadmap
 
+* Support for custom tags, key-value, declared in the 'service.toml' file, to be added in each log line.
 * ~~Support for receiving custom 'service.toml' definition rules.~~
-* Support for HTTP services without being declared in a protobuf file.
-* Support for custom tags, key-value declared in the 'service.toml' file, to be added in each log line.
+* ~~Support for HTTP services without being declared in a protobuf file.~~
 * ~~Remove unnecessary Logger APIs.~~
 
 ## License
