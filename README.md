@@ -27,7 +27,8 @@ Its main idea is to allow the user to create (or implement) an application, writ
 in Go, of the following categories:
 
 * gRPC: an application with an API defined from a [protobuf](https://protobuf.dev) file.
-* HTTP: an HTTP server-type application, with its API defined from a protobuf file.
+* HTTP (spec): an HTTP application with its API defined from a [protobuf](https://protobuf.dev) file.
+* HTTP (std): an HTTP application built directly with Go’s standard `net/http` library (routers, handlers, middlewares).
 * worker: a general-purpose application, without a defined API, with the ability to execute any code for long periods.
 * script: also a general-purpose application, without a defined API, but that only needs to execute a single function and stop.
 
