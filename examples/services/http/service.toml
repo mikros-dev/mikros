@@ -1,0 +1,5 @@
+name = "http"
+types = ["http:8080"]
+version = "v0.1.0"
+language = "go"
+product = "EXAMPLE"
