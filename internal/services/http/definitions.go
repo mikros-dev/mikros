@@ -44,7 +44,11 @@ func newDefinitions(definitions *definition.Definitions, opt *options.HttpServic
 				// File version of the following settings always wins
 				out.DisableAuth = defs.DisableAuth
 				out.CORSStrict = defs.CORSStrict
-				out.BasePath = normalizeBasePath(defs.BasePath)
+
+				// Only use the file version if it's not empty'
+				if defs.BasePath != "" {
+					out.BasePath = normalizeBasePath(defs.BasePath)
+				}
 
 				mergeNonZero(out, &defs)
 			}
