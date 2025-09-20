@@ -4,6 +4,7 @@ import (
 	"encoding"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -46,9 +47,10 @@ func Bind(r *http.Request, target interface{}) error {
 	}
 
 	var (
-		rv = v.Elem()
-		rt = rv.Type()
-		o  = getBindOptions()
+		rv         = v.Elem()
+		rt         = rv.Type()
+		o          = getBindOptions()
+		bodyTarget interface{}
 	)
 
 	extractor := func(location, name string) string {
@@ -87,6 +89,25 @@ func Bind(r *http.Request, target interface{}) error {
 		if tag == nil {
 			continue
 		}
+		if tag.Location == "body" {
+			// Parse body only once
+			if bodyTarget == nil {
+				bodyTarget = reflect.New(rt).Interface()
+				if err := BindBody(r, bodyTarget); err != nil {
+					return err
+				}
+			}
+
+			// Then "parse" the member value from the body
+			bf := reflect.ValueOf(bodyTarget).Elem().Field(i)
+			if !isZeroValue(bf) {
+				if err := setFieldValues(fv, f, []string{fmt.Sprintf("%v", bf.Interface())}, &o); err != nil {
+					return err
+				}
+			}
+
+			continue
+		}
 
 		value := extractor(tag.Location, paramName)
 		if value == "" {
@@ -99,6 +120,10 @@ func Bind(r *http.Request, target interface{}) error {
 	}
 
 	return nil
+}
+
+func isZeroValue(v reflect.Value) bool {
+	return !v.IsValid() || reflect.DeepEqual(v.Interface(), reflect.Zero(v.Type()).Interface())
 }
 
 // BindBodyOptions configures the behavior of BindBody.
@@ -164,7 +189,7 @@ type BindOptions struct {
 	PathGetter PathGetter
 
 	// FallbackSnakeCase controls field name resolution when no explicit tag is
-	// present. If true, converts field names to snake_case. If false, it uses
+	// present. If true, convert field names to snake_case. If false, it uses
 	// lower-case field names.
 	FallbackSnakeCase bool
 

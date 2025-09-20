@@ -36,7 +36,7 @@ func parseBindTag(tag reflect.StructTag) (*bindTag, error) {
 			if !ok {
 				return nil, errors.New("http: missing member location")
 			}
-			if !slices.Contains([]string{"query", "header", "path"}, v) {
+			if !slices.Contains([]string{"query", "header", "path", "body"}, v) {
 				return nil, errors.New("http: invalid location")
 			}
 			t.Location = strings.TrimSpace(v)
