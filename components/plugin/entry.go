@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	ferrors "github.com/mikros-dev/mikros/apis/features/errors"
-	flogger "github.com/mikros-dev/mikros/apis/features/logger"
+	errors_api "github.com/mikros-dev/mikros/apis/features/errors"
+	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
 	"github.com/mikros-dev/mikros/components/logger"
 )
 
@@ -19,8 +19,8 @@ import (
 type Entry struct {
 	featureEnabled bool
 	featureName    string
-	logger         flogger.LoggerAPI
-	errors         ferrors.ErrorAPI
+	logger         logger_api.LoggerAPI
+	errors         errors_api.ErrorAPI
 }
 
 // UpdateInfo is an internal method that allows a feature to have its
@@ -53,7 +53,7 @@ func (e *Entry) Name() string {
 }
 
 // Logger is a helper method that gives the feature access to the logger API.
-func (e *Entry) Logger() flogger.LoggerAPI {
+func (e *Entry) Logger() logger_api.LoggerAPI {
 	return e.logger
 }
 

@@ -1,5 +1,5 @@
-name = "native"
-types = ["native"]
+name = "http-spec"
+types = ["http-spec"]
 version = "v0.1.0"
 language = "go"
 product = "EXAMPLE"

@@ -1,4 +1,4 @@
-package http
+package http_spec
 
 import (
 	"context"
@@ -6,9 +6,9 @@ import (
 	"github.com/fasthttp/router"
 )
 
-// HttpServerAPI is the behavior that a service must implement to be accepted as
+// HttpSpecServerAPI is the behavior that a service must implement to be accepted as
 // a valid framework HTTP service.
-type HttpServerAPI interface {
+type HttpSpecServerAPI interface {
 	// SetupServer is the place where a service can adjust and initialize
 	// everything it requires to successfully initialize the HTTP server later.
 	SetupServer(

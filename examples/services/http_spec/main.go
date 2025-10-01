@@ -6,11 +6,14 @@ import (
 )
 
 func main() {
+	s := &service{}
 	svc := mikros.NewService(&options.NewServiceOptions{
 		Service: map[string]options.ServiceOptions{
-			"native": &options.NativeServiceOptions{},
+			"http-spec": &options.HttpSpecServiceOptions{
+				ProtoHttpServer: &routes{s},
+			},
 		},
 	})
 
-	svc.Start(&service{})
+	svc.Start(s)
 }

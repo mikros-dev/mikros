@@ -1,4 +1,4 @@
-package http
+package http_spec
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	"github.com/valyala/fasthttp"
 
 	"github.com/mikros-dev/mikros/apis/behavior"
-	flogger "github.com/mikros-dev/mikros/apis/features/logger"
+	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
 	"github.com/mikros-dev/mikros/components/definition"
 	"github.com/mikros-dev/mikros/components/logger"
 	"github.com/mikros-dev/mikros/components/options"
@@ -27,10 +27,10 @@ type Server struct {
 	defs              *Definitions
 	server            *fasthttp.Server
 	listener          net.Listener
-	logger            flogger.LoggerAPI
+	logger            logger_api.LoggerAPI
 	tracing           behavior.Tracer
 	tracker           behavior.Tracker
-	panicRecovery     behavior.Recovery
+	panicRecovery     behavior.HTTPSpecRecovery
 }
 
 func New() *Server {
@@ -38,13 +38,13 @@ func New() *Server {
 }
 
 func (s *Server) Name() string {
-	return definition.ServiceType_HTTP.String()
+	return definition.ServiceType_HTTPSpec.String()
 }
 
-func (s *Server) Info() []flogger.Attribute {
-	return []flogger.Attribute{
+func (s *Server) Info() []logger_api.Attribute {
+	return []logger_api.Attribute{
 		logger.String("service.address", fmt.Sprintf(":%v", s.port.Int32())),
-		logger.String("service.mode", definition.ServiceType_HTTP.String()),
+		logger.String("service.mode", definition.ServiceType_HTTPSpec.String()),
 		logger.String("service.http_auth", fmt.Sprintf("%t", !s.defs.DisableAuth)),
 	}
 }
@@ -117,7 +117,7 @@ func (s *Server) initializeHttpServerInternals(ctx context.Context, opt *plugin.
 	httpRouter := router.New()
 	httpRouter.RedirectFixedPath = false
 
-	svc, ok := opt.Service.(*options.HttpServiceOptions)
+	svc, ok := opt.Service.(*options.HttpSpecServiceOptions)
 	if !ok {
 		return errors.New("unsupported ServiceOptions received on initialization")
 	}
@@ -165,8 +165,8 @@ func (s *Server) createAuthHandlers(ctx context.Context, opt *plugin.ServiceOpti
 	return authPlugin.AuthHandlers()
 }
 
-func (s *Server) getAuth(opt *plugin.ServiceOptions) behavior.Authenticator {
-	c, err := opt.Features.Feature(options.HttpAuthFeatureName)
+func (s *Server) getAuth(opt *plugin.ServiceOptions) behavior.HTTPSpecAuthenticator {
+	c, err := opt.Features.Feature(options.HttpSpecAuthFeatureName)
 	if err != nil {
 		return nil
 	}
@@ -176,7 +176,7 @@ func (s *Server) getAuth(opt *plugin.ServiceOptions) behavior.Authenticator {
 		return nil
 	}
 
-	return api.FrameworkAPI().(behavior.Authenticator)
+	return api.FrameworkAPI().(behavior.HTTPSpecAuthenticator)
 }
 
 // registerHttpServer binds the HTTP handler into the service. It expects that
@@ -201,7 +201,7 @@ func (s *Server) registerHttpServer(handler fasthttp.RequestHandler, opt *plugin
 	}
 }
 
-func (s *Server) getPanicRecovery(opt *plugin.ServiceOptions) behavior.Recovery {
+func (s *Server) getPanicRecovery(opt *plugin.ServiceOptions) behavior.HTTPSpecRecovery {
 	if s.defs.DisablePanicRecovery {
 		return nil
 	}
@@ -216,10 +216,10 @@ func (s *Server) getPanicRecovery(opt *plugin.ServiceOptions) behavior.Recovery 
 		return nil
 	}
 
-	return api.FrameworkAPI().(behavior.Recovery)
+	return api.FrameworkAPI().(behavior.HTTPSpecRecovery)
 }
 
-func (s *Server) getCors(opt *plugin.ServiceOptions) behavior.Handler {
+func (s *Server) getCors(opt *plugin.ServiceOptions) behavior.CorsHandler {
 	c, err := opt.Features.Feature(options.HttpCorsFeatureName)
 	if err != nil {
 		return nil
@@ -230,7 +230,7 @@ func (s *Server) getCors(opt *plugin.ServiceOptions) behavior.Handler {
 		return nil
 	}
 
-	return api.FrameworkAPI().(behavior.Handler)
+	return api.FrameworkAPI().(behavior.CorsHandler)
 }
 
 func (s *Server) serverRequestHandler(h fasthttp.RequestHandler) fasthttp.RequestHandler {

@@ -6,7 +6,7 @@ import (
 
 	"github.com/valyala/fasthttp"
 
-	flogger "github.com/mikros-dev/mikros/apis/features/logger"
+	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
 	"github.com/mikros-dev/mikros/components/definition"
 	"github.com/mikros-dev/mikros/components/plugin"
 )
@@ -20,7 +20,7 @@ func New() *Client {
 }
 
 func (c *Client) CanBeInitialized(options *plugin.CanBeInitializedOptions) bool {
-	_, ok := options.Definitions.ServiceTypes()[definition.ServiceType_HTTP]
+	_, ok := options.Definitions.ServiceTypes()[definition.ServiceType_HTTPSpec]
 	return ok
 }
 
@@ -50,6 +50,6 @@ func (c *Client) SetResponseCode(ctx context.Context, code int) {
 	}
 }
 
-func (c *Client) Fields() []flogger.Attribute {
-	return []flogger.Attribute{}
+func (c *Client) Fields() []logger_api.Attribute {
+	return []logger_api.Attribute{}
 }

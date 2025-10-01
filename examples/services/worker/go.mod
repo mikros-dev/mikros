@@ -1,15 +1,10 @@
-module grpc
-
-replace github.com/mikros-dev/mikros/examples/protobuf-workspace => ../../../examples/protobuf-workspace
+module worker
 
 replace github.com/mikros-dev/mikros => ../../../
 
 go 1.24.0
 
-require (
-	github.com/mikros-dev/mikros v0.12.0
-	github.com/mikros-dev/mikros/examples/protobuf-workspace v0.0.0-00010101000000-000000000000
-)
+require github.com/mikros-dev/mikros v0.0.0-00010101000000-000000000000
 
 require (
 	github.com/BurntSushi/toml v1.5.0 // indirect

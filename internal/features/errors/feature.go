@@ -1,16 +1,16 @@
-package env
+package errors
 
 import (
 	"context"
 
-	fenv "github.com/mikros-dev/mikros/apis/features/env"
-	flogger "github.com/mikros-dev/mikros/apis/features/logger"
+	errors_api "github.com/mikros-dev/mikros/apis/features/errors"
+	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
 	"github.com/mikros-dev/mikros/components/plugin"
 )
 
 type Client struct {
 	plugin.Entry
-	envs fenv.EnvAPI
+	errors errors_api.ErrorAPI
 }
 
 func New() *Client {
@@ -23,14 +23,14 @@ func (c *Client) CanBeInitialized(_ *plugin.CanBeInitializedOptions) bool {
 }
 
 func (c *Client) Initialize(_ context.Context, options *plugin.InitializeOptions) error {
-	c.envs = options.Env
+	c.errors = options.Errors
 	return nil
 }
 
-func (c *Client) Fields() []flogger.Attribute {
-	return []flogger.Attribute{}
+func (c *Client) Fields() []logger_api.Attribute {
+	return []logger_api.Attribute{}
 }
 
 func (c *Client) ServiceAPI() interface{} {
-	return c.envs
+	return c.errors
 }

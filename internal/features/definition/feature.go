@@ -1,16 +1,16 @@
-package errors
+package definition
 
 import (
 	"context"
 
-	ferrors "github.com/mikros-dev/mikros/apis/features/errors"
-	flogger "github.com/mikros-dev/mikros/apis/features/logger"
+	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
+	"github.com/mikros-dev/mikros/components/definition"
 	"github.com/mikros-dev/mikros/components/plugin"
 )
 
 type Client struct {
 	plugin.Entry
-	errors ferrors.ErrorAPI
+	defs *definition.Definitions
 }
 
 func New() *Client {
@@ -23,14 +23,14 @@ func (c *Client) CanBeInitialized(_ *plugin.CanBeInitializedOptions) bool {
 }
 
 func (c *Client) Initialize(_ context.Context, options *plugin.InitializeOptions) error {
-	c.errors = options.Errors
+	c.defs = options.Definitions
 	return nil
 }
 
-func (c *Client) Fields() []flogger.Attribute {
-	return []flogger.Attribute{}
+func (c *Client) Fields() []logger_api.Attribute {
+	return []logger_api.Attribute{}
 }
 
-func (c *Client) ServiceAPI() interface{} {
-	return c.errors
+func (c *Client) ServiceName() string {
+	return c.defs.ServiceName().String()
 }

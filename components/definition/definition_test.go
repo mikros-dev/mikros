@@ -32,7 +32,7 @@ product = "SDS"
 			Title: "should not have script service type with other types",
 			TomlDefinitions: `
 name = "example"
-types = ["grpc", "http", "script"]
+types = ["grpc", "http-spec", "script"]
 version = "v1.0.0"
 language = "go"
 product = "SDS"
@@ -46,7 +46,7 @@ product = "SDS"
 			Title: "should not have duplicated service types",
 			TomlDefinitions: `
 name = "example"
-types = ["grpc", "http", "http"]
+types = ["grpc", "http-spec", "http-spec"]
 version = "v1.0.0"
 language = "go"
 product = "SDS"
@@ -73,7 +73,7 @@ product = "SDS"
 			Title: "should fail with unsupported types",
 			TomlDefinitions: `
 name = "example"
-types = ["grpc", "unsupported", "http"]
+types = ["grpc", "unsupported", "http-spec"]
 version = "v1.0.0"
 language = "go"
 product = "SDS"
@@ -116,7 +116,6 @@ emitted_events = [ "UNSUPPORTED_EVENT1", "UNSUPPORTED_EVENT2", "" ]
 				"'Definitions.Types[0]' Error:Field validation for 'Types[0]' failed on the 'service_type' tag\n",
 				"'Definitions.Version' Error:Field validation for 'Version' failed on the 'version' tag",
 				"'Definitions.Language' Error:Field validation for 'Language' failed on the 'oneof' tag",
-				"'Definitions.Product' Error:Field validation for 'Product' failed on the 'oneof' tag",
 				"'Definitions.Envs[0]' Error:Field validation for 'Envs[0]' failed on the 'uppercase' tag",
 			},
 			ErrorAssertion: a.Error,
@@ -142,7 +141,7 @@ emitted_events = [ "VEHICLE_CREATED" ]
 			Title: "succeed with service custom settings",
 			TomlDefinitions: `
 name = "service_test"
-types = ["http"]
+types = ["http-spec"]
 version = "v0.1.0"
 language = "go"
 product = "SDS"

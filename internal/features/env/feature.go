@@ -1,16 +1,16 @@
-package definition
+package env
 
 import (
 	"context"
 
-	flogger "github.com/mikros-dev/mikros/apis/features/logger"
-	"github.com/mikros-dev/mikros/components/definition"
+	env_api "github.com/mikros-dev/mikros/apis/features/env"
+	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
 	"github.com/mikros-dev/mikros/components/plugin"
 )
 
 type Client struct {
 	plugin.Entry
-	defs *definition.Definitions
+	envs env_api.EnvAPI
 }
 
 func New() *Client {
@@ -23,14 +23,14 @@ func (c *Client) CanBeInitialized(_ *plugin.CanBeInitializedOptions) bool {
 }
 
 func (c *Client) Initialize(_ context.Context, options *plugin.InitializeOptions) error {
-	c.defs = options.Definitions
+	c.envs = options.Env
 	return nil
 }
 
-func (c *Client) Fields() []flogger.Attribute {
-	return []flogger.Attribute{}
+func (c *Client) Fields() []logger_api.Attribute {
+	return []logger_api.Attribute{}
 }
 
-func (c *Client) ServiceName() string {
-	return c.defs.ServiceName().String()
+func (c *Client) ServiceAPI() interface{} {
+	return c.envs
 }

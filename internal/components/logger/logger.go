@@ -12,7 +12,7 @@ import (
 
 	"golang.org/x/exp/slog"
 
-	flogger "github.com/mikros-dev/mikros/apis/features/logger"
+	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
 	"github.com/mikros-dev/mikros/components/logger"
 )
 
@@ -30,8 +30,8 @@ var levelNames = map[slog.Leveler]string{
 
 type (
 	// ContextFieldExtractor is a function that receives a context and should
-	// return a slice of flogger.Attribute to be added into every log call.
-	ContextFieldExtractor func(ctx context.Context) []flogger.Attribute
+	// return a slice of logger_api.Attribute to be added into every log call.
+	ContextFieldExtractor func(ctx context.Context) []logger_api.Attribute
 )
 
 type Logger struct {
@@ -118,29 +118,29 @@ func New(options Options) *Logger {
 }
 
 // Debug outputs messages using debug level.
-func (l *Logger) Debug(ctx context.Context, msg string, attrs ...flogger.Attribute) {
+func (l *Logger) Debug(ctx context.Context, msg string, attrs ...logger_api.Attribute) {
 	mFields := l.mergeFieldsWithCtx(ctx, attrs)
 	l.logger.Debug(msg, mFields...)
 }
 
 // Info outputs messages using the info level.
-func (l *Logger) Info(ctx context.Context, msg string, attrs ...flogger.Attribute) {
+func (l *Logger) Info(ctx context.Context, msg string, attrs ...logger_api.Attribute) {
 	mFields := l.mergeFieldsWithCtx(ctx, attrs)
 	l.logger.Info(msg, mFields...)
 }
 
 // Warn outputs messages using warning level.
-func (l *Logger) Warn(ctx context.Context, msg string, attrs ...flogger.Attribute) {
+func (l *Logger) Warn(ctx context.Context, msg string, attrs ...logger_api.Attribute) {
 	mFields := l.mergeFieldsWithCtx(ctx, attrs)
 	l.logger.Warn(msg, mFields...)
 }
 
 // Error outputs messages using error level.
-func (l *Logger) Error(ctx context.Context, msg string, attrs ...flogger.Attribute) {
+func (l *Logger) Error(ctx context.Context, msg string, attrs ...logger_api.Attribute) {
 	l.error(ctx, msg, attrs...)
 }
 
-func (l *Logger) error(ctx context.Context, msg string, attrs ...flogger.Attribute) {
+func (l *Logger) error(ctx context.Context, msg string, attrs ...logger_api.Attribute) {
 	var (
 		mFields = l.mergeFieldsWithCtx(ctx, attrs)
 		pcs     [1]uintptr
@@ -165,13 +165,13 @@ func (l *Logger) error(ctx context.Context, msg string, attrs ...flogger.Attribu
 }
 
 // Fatal outputs message using fatal level.
-func (l *Logger) Fatal(ctx context.Context, msg string, attrs ...flogger.Attribute) {
+func (l *Logger) Fatal(ctx context.Context, msg string, attrs ...logger_api.Attribute) {
 	mFields := l.mergeFieldsWithCtx(ctx, attrs)
 	l.logger.Log(ctx, levelFatal, msg, mFields...)
 	os.Exit(fatalExitCode)
 }
 
-func (l *Logger) mergeFieldsWithCtx(ctx context.Context, attrs []flogger.Attribute) []any {
+func (l *Logger) mergeFieldsWithCtx(ctx context.Context, attrs []logger_api.Attribute) []any {
 	var (
 		appendedFields = l.appendServiceContext(ctx, attrs)
 		mergedFields   = make([]any, len(appendedFields))
@@ -191,7 +191,7 @@ func (l *Logger) DisableDebugMessages() {
 
 // appendServiceContext executes a custom field extractor from the current
 // context to add more fields into the message.
-func (l *Logger) appendServiceContext(ctx context.Context, attrs []flogger.Attribute) []flogger.Attribute {
+func (l *Logger) appendServiceContext(ctx context.Context, attrs []logger_api.Attribute) []logger_api.Attribute {
 	if l.fieldExtractor != nil {
 		attrs = append(attrs, l.fieldExtractor(ctx)...)
 	}
@@ -257,7 +257,7 @@ func (l *Logger) SetContextFieldExtractor(extractor ContextFieldExtractor) {
 }
 
 func (l *Logger) Debugf(ctx context.Context, msg string, attrs ...map[string]interface{}) {
-	var loggerFields []flogger.Attribute
+	var loggerFields []logger_api.Attribute
 	if len(attrs) > 0 {
 		for k, v := range attrs[0] {
 			loggerFields = append(loggerFields, logger.Any(k, v))
@@ -268,7 +268,7 @@ func (l *Logger) Debugf(ctx context.Context, msg string, attrs ...map[string]int
 }
 
 func (l *Logger) Infof(ctx context.Context, msg string, attrs ...map[string]interface{}) {
-	var loggerFields []flogger.Attribute
+	var loggerFields []logger_api.Attribute
 	if len(attrs) > 0 {
 		for k, v := range attrs[0] {
 			loggerFields = append(loggerFields, logger.Any(k, v))
@@ -279,7 +279,7 @@ func (l *Logger) Infof(ctx context.Context, msg string, attrs ...map[string]inte
 }
 
 func (l *Logger) Warnf(ctx context.Context, msg string, attrs ...map[string]interface{}) {
-	var loggerFields []flogger.Attribute
+	var loggerFields []logger_api.Attribute
 	if len(attrs) > 0 {
 		for k, v := range attrs[0] {
 			loggerFields = append(loggerFields, logger.Any(k, v))
@@ -290,7 +290,7 @@ func (l *Logger) Warnf(ctx context.Context, msg string, attrs ...map[string]inte
 }
 
 func (l *Logger) Errorf(ctx context.Context, msg string, attrs ...map[string]interface{}) {
-	var loggerFields []flogger.Attribute
+	var loggerFields []logger_api.Attribute
 	if len(attrs) > 0 {
 		for k, v := range attrs[0] {
 			loggerFields = append(loggerFields, logger.Any(k, v))
@@ -301,7 +301,7 @@ func (l *Logger) Errorf(ctx context.Context, msg string, attrs ...map[string]int
 }
 
 func (l *Logger) Fatalf(ctx context.Context, msg string, attrs ...map[string]interface{}) {
-	var loggerFields []flogger.Attribute
+	var loggerFields []logger_api.Attribute
 	if len(attrs) > 0 {
 		for k, v := range attrs[0] {
 			loggerFields = append(loggerFields, logger.Any(k, v))
@@ -316,13 +316,13 @@ func (l *Logger) InnerLogger() *slog.Logger {
 }
 
 // Internal outputs messages using the internal level.
-func (l *Logger) Internal(ctx context.Context, msg string, attrs ...flogger.Attribute) {
+func (l *Logger) Internal(ctx context.Context, msg string, attrs ...logger_api.Attribute) {
 	mFields := l.mergeFieldsWithCtx(ctx, attrs)
 	l.logger.Log(ctx, levelInternal, msg, mFields...)
 }
 
 func (l *Logger) Internalf(ctx context.Context, msg string, attrs ...map[string]interface{}) {
-	var loggerFields []flogger.Attribute
+	var loggerFields []logger_api.Attribute
 	if len(attrs) > 0 {
 		for k, v := range attrs[0] {
 			loggerFields = append(loggerFields, logger.Any(k, v))

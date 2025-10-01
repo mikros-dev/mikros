@@ -16,6 +16,7 @@ const (
 	// internal services, they must have these names.
 
 	HttpCorsFeatureName        = FeatureNamePrefix + "http_cors"
+	HttpSpecAuthFeatureName    = FeatureNamePrefix + "http_spec_auth"
 	HttpAuthFeatureName        = FeatureNamePrefix + "http_auth"
 	TracingFeatureName         = FeatureNamePrefix + "tracing"
 	TrackerFeatureName         = FeatureNamePrefix + "tracker"
