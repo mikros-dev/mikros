@@ -4,3 +4,13 @@ cover.html
 
 # vim temporary files
 *.swp
+
+# IDE Files
+.idea
+.vscode
+
+# OS
+.DS_Store
+
+# Lint files
+revive.toml

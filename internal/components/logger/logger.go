@@ -4,16 +4,15 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
 
-	"golang.org/x/exp/slog"
-
 	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
-	"github.com/mikros-dev/mikros/components/logger"
+	logger_fields "github.com/mikros-dev/mikros/components/logger"
 )
 
 const (
@@ -21,6 +20,8 @@ const (
 	levelInternal            = slog.Level(-2)
 	fatalExitCode            = 1
 	skippedStacktraceCallers = 3
+
+	loggerPkgHint = "/internal/components/logger"
 )
 
 var levelNames = map[slog.Leveler]string{
@@ -94,10 +95,10 @@ func New(options Options) *Logger {
 
 	// Creates a specific log handler so every error message can have its source
 	// in the output.
-	opts.AddSource = true
-	errHandler := slog.NewJSONHandler(os.Stdout, opts).WithAttrs(attrs)
+	opts.AddSource = false
+	errHandler := slog.NewJSONHandler(os.Stderr, opts).WithAttrs(attrs)
 	if options.TextOutput {
-		errHandler = slog.NewTextHandler(os.Stdout, opts).WithAttrs(attrs)
+		errHandler = slog.NewTextHandler(os.Stderr, opts).WithAttrs(attrs)
 	}
 
 	// Create our handlers
@@ -143,25 +144,104 @@ func (l *Logger) Error(ctx context.Context, msg string, attrs ...logger_api.Attr
 func (l *Logger) error(ctx context.Context, msg string, attrs ...logger_api.Attribute) {
 	var (
 		mFields = l.mergeFieldsWithCtx(ctx, attrs)
-		pcs     [1]uintptr
+		pc      uintptr
 	)
 
 	if l.level.Level() > slog.LevelError {
 		return
 	}
 
-	runtime.Callers(3, pcs[:]) // skip [Callers, error]
-	r := slog.NewRecord(time.Now(), slog.LevelError, msg, pcs[0])
+	fr, ok := pickCallerFrame(2)
+	if ok {
+		pc = fr.PC
+	}
+
+	r := slog.NewRecord(time.Now(), slog.LevelError, msg, pc)
 
 	if len(mFields) > 0 {
 		r.Add(mFields...)
 	}
 
-	_ = l.errorLogger.Handler().Handle(ctx, r)
+	if ok {
+		var (
+			funcName = fr.Function
+			file     = fr.File
+			fileBase = filepath.Base(file)
+		)
+
+		file = filepath.Join(filepath.Base(filepath.Dir(file)), fileBase)
+
+		r.AddAttrs(slog.Any(slog.SourceKey, &slog.Source{
+			Function: funcName,
+			File:     file,
+			Line:     fr.Line,
+		}))
+	}
 
 	if l.showErrorStacktrace {
-		fmt.Print(takeStacktrace(skippedStacktraceCallers))
+		r.AddAttrs(slog.String("stack", takeStacktrace(skippedStacktraceCallers)))
 	}
+
+	_ = l.errorLogger.Handler().Handle(ctx, r)
+}
+
+func pickCallerFrame(startSkip int) (runtime.Frame, bool) {
+	var (
+		pcs [32]uintptr
+		n   = runtime.Callers(startSkip, pcs[:])
+	)
+
+	if n == 0 {
+		return runtime.Frame{}, false
+	}
+
+	var (
+		frames      = runtime.CallersFrames(pcs[:n])
+		isLogMethod = func(name string) bool {
+			switch name {
+			case "Debug", "Debugf", "Debugw",
+				"Info", "Infof", "Infow",
+				"Warn", "Warnf", "Warnw",
+				"Error", "Errorf", "Errorw",
+				"Fatal", "Fatalf", "Fatalw":
+				return true
+			}
+
+			return false
+		}
+	)
+
+	for {
+		fr, more := frames.Next()
+		full := fr.Function
+
+		// skip frames from the logger package itself
+		if strings.Contains(full, loggerPkgHint) {
+			if !more {
+				break
+			}
+
+			continue
+		}
+
+		// skip wrapper frames that implement logger-like methods, if any
+		name := full
+		if i := strings.LastIndex(full, "."); i >= 0 && i < len(full)-1 {
+			name = full[i+1:]
+		}
+
+		if isLogMethod(name) {
+			if !more {
+				break
+			}
+
+			continue
+		}
+
+		return fr, true
+	}
+
+	return runtime.Frame{}, false
 }
 
 // Fatal outputs message using fatal level.
@@ -260,7 +340,7 @@ func (l *Logger) Debugf(ctx context.Context, msg string, attrs ...map[string]int
 	var loggerFields []logger_api.Attribute
 	if len(attrs) > 0 {
 		for k, v := range attrs[0] {
-			loggerFields = append(loggerFields, logger.Any(k, v))
+			loggerFields = append(loggerFields, logger_fields.Any(k, v))
 		}
 	}
 
@@ -271,7 +351,7 @@ func (l *Logger) Infof(ctx context.Context, msg string, attrs ...map[string]inte
 	var loggerFields []logger_api.Attribute
 	if len(attrs) > 0 {
 		for k, v := range attrs[0] {
-			loggerFields = append(loggerFields, logger.Any(k, v))
+			loggerFields = append(loggerFields, logger_fields.Any(k, v))
 		}
 	}
 
@@ -282,7 +362,7 @@ func (l *Logger) Warnf(ctx context.Context, msg string, attrs ...map[string]inte
 	var loggerFields []logger_api.Attribute
 	if len(attrs) > 0 {
 		for k, v := range attrs[0] {
-			loggerFields = append(loggerFields, logger.Any(k, v))
+			loggerFields = append(loggerFields, logger_fields.Any(k, v))
 		}
 	}
 
@@ -293,7 +373,7 @@ func (l *Logger) Errorf(ctx context.Context, msg string, attrs ...map[string]int
 	var loggerFields []logger_api.Attribute
 	if len(attrs) > 0 {
 		for k, v := range attrs[0] {
-			loggerFields = append(loggerFields, logger.Any(k, v))
+			loggerFields = append(loggerFields, logger_fields.Any(k, v))
 		}
 	}
 
@@ -304,7 +384,7 @@ func (l *Logger) Fatalf(ctx context.Context, msg string, attrs ...map[string]int
 	var loggerFields []logger_api.Attribute
 	if len(attrs) > 0 {
 		for k, v := range attrs[0] {
-			loggerFields = append(loggerFields, logger.Any(k, v))
+			loggerFields = append(loggerFields, logger_fields.Any(k, v))
 		}
 	}
 
@@ -325,7 +405,7 @@ func (l *Logger) Internalf(ctx context.Context, msg string, attrs ...map[string]
 	var loggerFields []logger_api.Attribute
 	if len(attrs) > 0 {
 		for k, v := range attrs[0] {
-			loggerFields = append(loggerFields, logger.Any(k, v))
+			loggerFields = append(loggerFields, logger_fields.Any(k, v))
 		}
 	}
 
