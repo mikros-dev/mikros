@@ -16,11 +16,9 @@ import (
 )
 
 const (
-	levelFatal               = slog.Level(12)
-	levelInternal            = slog.Level(-2)
-	fatalExitCode            = 1
-	skippedStacktraceCallers = 3
-
+	levelFatal    = slog.Level(12)
+	levelInternal = slog.Level(-2)
+	fatalExitCode = 1
 	loggerPkgHint = "/internal/components/logger"
 )
 
@@ -29,6 +27,14 @@ var levelNames = map[slog.Leveler]string{
 	levelInternal: "INTERNAL",
 }
 
+type ErrorStackTraceMode string
+
+const (
+	ErrorStackTraceModeDisabled   ErrorStackTraceMode = "disabled"
+	ErrorStackTraceModeDefault    ErrorStackTraceMode = "default"
+	ErrorStackTraceModeStructured ErrorStackTraceMode = "structured"
+)
+
 type (
 	// ContextFieldExtractor is a function that receives a context and should
 	// return a slice of logger_api.Attribute to be added into every log call.
@@ -36,18 +42,18 @@ type (
 )
 
 type Logger struct {
-	showErrorStacktrace bool
-	logger              *slog.Logger
-	errorLogger         *slog.Logger
-	level               *logLeveler
-	fieldExtractor      ContextFieldExtractor
+	errorStacktrace ErrorStackTraceMode
+	logger          *slog.Logger
+	errorLogger     *slog.Logger
+	level           *logLeveler
+	fieldExtractor  ContextFieldExtractor
 }
 
 type Options struct {
-	TextOutput             bool
-	DiscardMessages        bool
-	DisableErrorStacktrace bool
-	FixedAttributes        map[string]string
+	TextOutput      bool
+	DiscardMessages bool
+	ErrorStacktrace string
+	FixedAttributes map[string]string
 }
 
 // New creates a new Logger interface for applications.
@@ -111,10 +117,10 @@ func New(options Options) *Logger {
 	}
 
 	return &Logger{
-		showErrorStacktrace: !options.DisableErrorStacktrace,
-		logger:              l,
-		errorLogger:         e,
-		level:               level,
+		errorStacktrace: ErrorStackTraceMode(options.ErrorStacktrace),
+		logger:          l,
+		errorLogger:     e,
+		level:           level,
 	}
 }
 
@@ -151,7 +157,7 @@ func (l *Logger) error(ctx context.Context, msg string, attrs ...logger_api.Attr
 		return
 	}
 
-	fr, ok := pickCallerFrame(2)
+	fr, idx, ok := pickCallerFrame(2)
 	if ok {
 		pc = fr.PC
 	}
@@ -178,24 +184,37 @@ func (l *Logger) error(ctx context.Context, msg string, attrs ...logger_api.Attr
 		}))
 	}
 
-	if l.showErrorStacktrace {
-		r.AddAttrs(slog.String("stack", takeStacktrace(skippedStacktraceCallers)))
-	}
+	l.printErrorStackTrace(&r, 2+idx)
 
-	_ = l.errorLogger.Handler().Handle(ctx, r)
+	if err := l.errorLogger.Handler().Handle(ctx, r); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "error logging error: %v\n", err)
+	}
 }
 
-func pickCallerFrame(startSkip int) (runtime.Frame, bool) {
+func (l *Logger) printErrorStackTrace(record *slog.Record, skip int) {
+	if l.errorStacktrace == ErrorStackTraceModeDisabled || l.errorStacktrace == "" {
+		return
+	}
+
+	if l.errorStacktrace == ErrorStackTraceModeDefault {
+		_, _ = fmt.Print(takeStacktrace(skip))
+	}
+
+	record.AddAttrs(slog.String("stack", takeStacktrace(skip)))
+}
+
+func pickCallerFrame(startSkip int) (runtime.Frame, int, bool) {
 	var (
 		pcs [32]uintptr
 		n   = runtime.Callers(startSkip, pcs[:])
 	)
 
 	if n == 0 {
-		return runtime.Frame{}, false
+		return runtime.Frame{}, 0, false
 	}
 
 	var (
+		idx         = 0
 		frames      = runtime.CallersFrames(pcs[:n])
 		isLogMethod = func(name string) bool {
 			switch name {
@@ -217,6 +236,8 @@ func pickCallerFrame(startSkip int) (runtime.Frame, bool) {
 
 		// skip frames from the logger package itself
 		if strings.Contains(full, loggerPkgHint) {
+			idx++
+
 			if !more {
 				break
 			}
@@ -231,6 +252,8 @@ func pickCallerFrame(startSkip int) (runtime.Frame, bool) {
 		}
 
 		if isLogMethod(name) {
+			idx++
+
 			if !more {
 				break
 			}
@@ -238,10 +261,10 @@ func pickCallerFrame(startSkip int) (runtime.Frame, bool) {
 			continue
 		}
 
-		return fr, true
+		return fr, idx, true
 	}
 
-	return runtime.Frame{}, false
+	return runtime.Frame{}, idx, false
 }
 
 // Fatal outputs message using fatal level.
@@ -324,10 +347,10 @@ func (l *Logger) Level() string {
 	return "unknown"
 }
 
-// SetErrorStacktrace lets one enable or disable the runtime stacktrace that
+// SetErrorStacktrace lets one choose the runtime stacktrace format that
 // error messages can show.
-func (l *Logger) SetErrorStacktrace(enabled bool) {
-	l.showErrorStacktrace = enabled
+func (l *Logger) SetErrorStacktrace(mode ErrorStackTraceMode) {
+	l.errorStacktrace = mode
 }
 
 // SetContextFieldExtractor adds a custom function to extract values from the

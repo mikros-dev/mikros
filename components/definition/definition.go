@@ -39,7 +39,7 @@ type Definitions struct {
 }
 
 type Log struct {
-	ErrorStacktrace bool   `toml:"error_stacktrace,omitempty"`
+	ErrorStacktrace string `toml:"error_stacktrace,omitempty" validate:"omitempty,oneof=default disabled structure" default:"default"`
 	Level           string `toml:"level,omitempty" validate:"omitempty,oneof=info debug error warn internal"`
 }
 

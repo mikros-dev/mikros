@@ -21,6 +21,7 @@ func newStacktrace() *stacktrace {
 func (s *stacktrace) free() {
 	s.pcs = nil
 	s.frames = nil
+	s.storage = nil
 }
 
 func (s *stacktrace) next() (runtime.Frame, bool) {
