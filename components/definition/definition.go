@@ -39,8 +39,9 @@ type Definitions struct {
 }
 
 type Log struct {
-	ErrorStackTrace string `toml:"error_stack_trace,omitempty" validate:"omitempty,oneof=default disabled structured" default:"default"`
-	Level           string `toml:"level,omitempty" validate:"omitempty,oneof=info debug error warn internal"`
+	ErrorStackTrace string            `toml:"error_stack_trace,omitempty" validate:"omitempty,oneof=default disabled structured" default:"default"`
+	Level           string            `toml:"level,omitempty" validate:"omitempty,oneof=info debug error warn internal"`
+	Attributes      map[string]string `toml:"attributes,omitempty"`
 }
 
 type GrpcClient struct {
