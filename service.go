@@ -96,7 +96,7 @@ func initService(opt *options.NewServiceOptions) (*Service, error) {
 	// Initialize the service logger system.
 	serviceLogger := mlogger.New(mlogger.Options{
 		DiscardMessages: discardMessages,
-		ErrorStacktrace: defs.Log.ErrorStacktrace,
+		ErrorStackTrace: defs.Log.ErrorStackTrace,
 		FixedAttributes: map[string]string{
 			"service.name":    defs.ServiceName().String(),
 			"service.type":    defs.ServiceTypesAsString(),

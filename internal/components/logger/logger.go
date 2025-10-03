@@ -42,7 +42,7 @@ type (
 )
 
 type Logger struct {
-	errorStacktrace ErrorStackTraceMode
+	errorStackTrace ErrorStackTraceMode
 	logger          *slog.Logger
 	errorLogger     *slog.Logger
 	level           *logLeveler
@@ -52,7 +52,7 @@ type Logger struct {
 type Options struct {
 	TextOutput      bool
 	DiscardMessages bool
-	ErrorStacktrace string
+	ErrorStackTrace string
 	FixedAttributes map[string]string
 }
 
@@ -117,7 +117,7 @@ func New(options Options) *Logger {
 	}
 
 	return &Logger{
-		errorStacktrace: ErrorStackTraceMode(options.ErrorStacktrace),
+		errorStackTrace: ErrorStackTraceMode(options.ErrorStackTrace),
 		logger:          l,
 		errorLogger:     e,
 		level:           level,
@@ -192,11 +192,11 @@ func (l *Logger) error(ctx context.Context, msg string, attrs ...logger_api.Attr
 }
 
 func (l *Logger) printErrorStackTrace(record *slog.Record, skip int) {
-	if l.errorStacktrace == ErrorStackTraceModeDisabled || l.errorStacktrace == "" {
+	if l.errorStackTrace == ErrorStackTraceModeDisabled || l.errorStackTrace == "" {
 		return
 	}
 
-	if l.errorStacktrace == ErrorStackTraceModeDefault {
+	if l.errorStackTrace == ErrorStackTraceModeDefault {
 		_, _ = fmt.Print(takeStacktrace(skip))
 		return
 	}
@@ -351,7 +351,7 @@ func (l *Logger) Level() string {
 // SetErrorStacktrace lets one choose the runtime stacktrace format that
 // error messages can show.
 func (l *Logger) SetErrorStacktrace(mode ErrorStackTraceMode) {
-	l.errorStacktrace = mode
+	l.errorStackTrace = mode
 }
 
 // SetContextFieldExtractor adds a custom function to extract values from the
