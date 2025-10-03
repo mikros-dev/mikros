@@ -12,7 +12,6 @@ import (
 	"time"
 
 	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
-	logger_fields "github.com/mikros-dev/mikros/components/logger"
 )
 
 const (
@@ -22,16 +21,31 @@ const (
 	loggerPkgHint = "/internal/components/logger"
 )
 
-var levelNames = map[slog.Leveler]string{
-	levelFatal:    "FATAL",
-	levelInternal: "INTERNAL",
-}
+var (
+	levelNames = map[slog.Leveler]string{
+		levelFatal:    "FATAL",
+		levelInternal: "INTERNAL",
+	}
 
+	logMethodNames = map[string]struct{}{
+		"Debug": {}, "Info": {}, "Warn": {}, "Error": {}, "Fatal": {},
+	}
+)
+
+// ErrorStackTraceMode defines the mode for formatting stack traces in error logs.
 type ErrorStackTraceMode string
 
 const (
-	ErrorStackTraceModeDisabled   ErrorStackTraceMode = "disabled"
-	ErrorStackTraceModeDefault    ErrorStackTraceMode = "default"
+	// ErrorStackTraceModeDisabled disables error stack trace generation and
+	// output.
+	ErrorStackTraceModeDisabled ErrorStackTraceMode = "disabled"
+
+	// ErrorStackTraceModeDefault enables default stack trace generation and
+	// output for error logs using fmt.Print to stderr.
+	ErrorStackTraceModeDefault ErrorStackTraceMode = "default"
+
+	// ErrorStackTraceModeStructured formats stack traces in a structured
+	// representation, suitable for machine parsing.
 	ErrorStackTraceModeStructured ErrorStackTraceMode = "structured"
 )
 
@@ -41,6 +55,8 @@ type (
 	ContextFieldExtractor func(ctx context.Context) []logger_api.Attribute
 )
 
+// Logger represents a structured logger with multiple log levels and
+// context-aware attributes.
 type Logger struct {
 	errorStackTrace ErrorStackTraceMode
 	logger          *slog.Logger
@@ -49,6 +65,8 @@ type Logger struct {
 	fieldExtractor  ContextFieldExtractor
 }
 
+// Options represents customizable settings for configuring logger behaviors
+// and attributes in a structured logging system.
 type Options struct {
 	TextOutput      bool
 	DiscardMessages bool
@@ -59,7 +77,6 @@ type Options struct {
 // New creates a new Logger interface for applications.
 func New(options Options) *Logger {
 	var (
-		attrs []slog.Attr
 		level = newLogLeveler(slog.LevelInfo)
 		opts  = &slog.HandlerOptions{
 			Level: level,
@@ -87,9 +104,20 @@ func New(options Options) *Logger {
 				return a
 			},
 		}
+		l, e = createLoggers(options, opts)
 	)
 
+	return &Logger{
+		errorStackTrace: ErrorStackTraceMode(options.ErrorStackTrace),
+		logger:          l,
+		errorLogger:     e,
+		level:           level,
+	}
+}
+
+func createLoggers(options Options, opts *slog.HandlerOptions) (*slog.Logger, *slog.Logger) {
 	// Adds custom fixed attributes into every log message.
+	attrs := []slog.Attr{}
 	for k, v := range options.FixedAttributes {
 		attrs = append(attrs, slog.String(k, v))
 	}
@@ -116,12 +144,7 @@ func New(options Options) *Logger {
 		e = l
 	}
 
-	return &Logger{
-		errorStackTrace: ErrorStackTraceMode(options.ErrorStackTrace),
-		logger:          l,
-		errorLogger:     e,
-		level:           level,
-	}
+	return l, e
 }
 
 // Debug outputs messages using debug level.
@@ -144,10 +167,16 @@ func (l *Logger) Warn(ctx context.Context, msg string, attrs ...logger_api.Attri
 
 // Error outputs messages using error level.
 func (l *Logger) Error(ctx context.Context, msg string, attrs ...logger_api.Attribute) {
-	l.error(ctx, msg, attrs...)
+	l.recordError(ctx, msg, attrs...)
 }
 
-func (l *Logger) error(ctx context.Context, msg string, attrs ...logger_api.Attribute) {
+// Internal outputs messages using the custom internal level.
+func (l *Logger) Internal(ctx context.Context, msg string, attrs ...logger_api.Attribute) {
+	mFields := l.mergeFieldsWithCtx(ctx, attrs)
+	l.logger.Log(ctx, levelInternal, msg, mFields...)
+}
+
+func (l *Logger) recordError(ctx context.Context, msg string, attrs ...logger_api.Attribute) {
 	var (
 		mFields = l.mergeFieldsWithCtx(ctx, attrs)
 		pc      uintptr
@@ -157,7 +186,7 @@ func (l *Logger) error(ctx context.Context, msg string, attrs ...logger_api.Attr
 		return
 	}
 
-	fr, idx, ok := pickCallerFrame(2)
+	fr, skipped, ok := pickCallerFrame(2)
 	if ok {
 		pc = fr.PC
 	}
@@ -184,7 +213,7 @@ func (l *Logger) error(ctx context.Context, msg string, attrs ...logger_api.Attr
 		}))
 	}
 
-	l.printErrorStackTrace(&r, 2+idx)
+	l.printErrorStackTrace(&r, 2+skipped)
 
 	if err := l.errorLogger.Handler().Handle(ctx, r); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "error logging error: %v\n", err)
@@ -215,34 +244,21 @@ func pickCallerFrame(startSkip int) (runtime.Frame, int, bool) {
 	}
 
 	var (
-		idx         = 0
-		frames      = runtime.CallersFrames(pcs[:n])
-		isLogMethod = func(name string) bool {
-			switch name {
-			case "Debug", "Debugf", "Debugw",
-				"Info", "Infof", "Infow",
-				"Warn", "Warnf", "Warnw",
-				"Error", "Errorf", "Errorw",
-				"Fatal", "Fatalf", "Fatalw":
-				return true
-			}
-
-			return false
-		}
+		skipped = 0
+		frames  = runtime.CallersFrames(pcs[:n])
 	)
 
 	for {
 		fr, more := frames.Next()
+		if !more {
+			return runtime.Frame{}, skipped, false
+		}
+
 		full := fr.Function
 
 		// skip frames from the logger package itself
 		if strings.Contains(full, loggerPkgHint) {
-			idx++
-
-			if !more {
-				break
-			}
-
+			skipped++
 			continue
 		}
 
@@ -253,19 +269,17 @@ func pickCallerFrame(startSkip int) (runtime.Frame, int, bool) {
 		}
 
 		if isLogMethod(name) {
-			idx++
-
-			if !more {
-				break
-			}
-
+			skipped++
 			continue
 		}
 
-		return fr, idx, true
+		return fr, skipped, true
 	}
+}
 
-	return runtime.Frame{}, idx, false
+func isLogMethod(name string) bool {
+	_, ok := logMethodNames[name]
+	return ok
 }
 
 // Fatal outputs message using fatal level.
@@ -358,80 +372,4 @@ func (l *Logger) SetErrorStacktrace(mode ErrorStackTraceMode) {
 // context and add them into the log messages.
 func (l *Logger) SetContextFieldExtractor(extractor ContextFieldExtractor) {
 	l.fieldExtractor = extractor
-}
-
-func (l *Logger) Debugf(ctx context.Context, msg string, attrs ...map[string]interface{}) {
-	var loggerFields []logger_api.Attribute
-	if len(attrs) > 0 {
-		for k, v := range attrs[0] {
-			loggerFields = append(loggerFields, logger_fields.Any(k, v))
-		}
-	}
-
-	l.Debug(ctx, msg, loggerFields...)
-}
-
-func (l *Logger) Infof(ctx context.Context, msg string, attrs ...map[string]interface{}) {
-	var loggerFields []logger_api.Attribute
-	if len(attrs) > 0 {
-		for k, v := range attrs[0] {
-			loggerFields = append(loggerFields, logger_fields.Any(k, v))
-		}
-	}
-
-	l.Info(ctx, msg, loggerFields...)
-}
-
-func (l *Logger) Warnf(ctx context.Context, msg string, attrs ...map[string]interface{}) {
-	var loggerFields []logger_api.Attribute
-	if len(attrs) > 0 {
-		for k, v := range attrs[0] {
-			loggerFields = append(loggerFields, logger_fields.Any(k, v))
-		}
-	}
-
-	l.Warn(ctx, msg, loggerFields...)
-}
-
-func (l *Logger) Errorf(ctx context.Context, msg string, attrs ...map[string]interface{}) {
-	var loggerFields []logger_api.Attribute
-	if len(attrs) > 0 {
-		for k, v := range attrs[0] {
-			loggerFields = append(loggerFields, logger_fields.Any(k, v))
-		}
-	}
-
-	l.Error(ctx, msg, loggerFields...)
-}
-
-func (l *Logger) Fatalf(ctx context.Context, msg string, attrs ...map[string]interface{}) {
-	var loggerFields []logger_api.Attribute
-	if len(attrs) > 0 {
-		for k, v := range attrs[0] {
-			loggerFields = append(loggerFields, logger_fields.Any(k, v))
-		}
-	}
-
-	l.Fatal(ctx, msg, loggerFields...)
-}
-
-func (l *Logger) InnerLogger() *slog.Logger {
-	return l.logger
-}
-
-// Internal outputs messages using the internal level.
-func (l *Logger) Internal(ctx context.Context, msg string, attrs ...logger_api.Attribute) {
-	mFields := l.mergeFieldsWithCtx(ctx, attrs)
-	l.logger.Log(ctx, levelInternal, msg, mFields...)
-}
-
-func (l *Logger) Internalf(ctx context.Context, msg string, attrs ...map[string]interface{}) {
-	var loggerFields []logger_api.Attribute
-	if len(attrs) > 0 {
-		for k, v := range attrs[0] {
-			loggerFields = append(loggerFields, logger_fields.Any(k, v))
-		}
-	}
-
-	l.Internal(ctx, msg, loggerFields...)
 }

@@ -78,6 +78,8 @@ func (sf *stackFormatter) FormatStack(stack *stacktrace) {
 }
 
 // FormatFrame formats the given frame.
+//
+//revive:disable:unhandled-error
 func (sf *stackFormatter) FormatFrame(frame runtime.Frame) {
 	sf.s.WriteString(frame.Function)
 	sf.s.WriteString("\n")
