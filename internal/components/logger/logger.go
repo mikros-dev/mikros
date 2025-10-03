@@ -198,6 +198,7 @@ func (l *Logger) printErrorStackTrace(record *slog.Record, skip int) {
 
 	if l.errorStacktrace == ErrorStackTraceModeDefault {
 		_, _ = fmt.Print(takeStacktrace(skip))
+		return
 	}
 
 	record.AddAttrs(slog.String("stack", takeStacktrace(skip)))
