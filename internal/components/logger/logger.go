@@ -28,7 +28,11 @@ var (
 	}
 
 	logMethodNames = map[string]struct{}{
-		"Debug": {}, "Info": {}, "Warn": {}, "Error": {}, "Fatal": {},
+		"Debug": {}, "Debugf": {}, "Debugw": {},
+		"Info": {}, "Infof": {}, "Infow": {},
+		"Warn": {}, "Warnf": {}, "Warnw": {},
+		"Error": {}, "Errorf": {}, "Errorw": {},
+		"Fatal": {}, "Fatalf": {}, "Fatalw": {},
 	}
 )
 
@@ -117,7 +121,7 @@ func New(options Options) *Logger {
 
 func createLoggers(options Options, opts *slog.HandlerOptions) (*slog.Logger, *slog.Logger) {
 	// Adds custom fixed attributes into every log message.
-	attrs := []slog.Attr{}
+	var attrs []slog.Attr
 	for k, v := range options.FixedAttributes {
 		attrs = append(attrs, slog.String(k, v))
 	}
@@ -167,7 +171,11 @@ func (l *Logger) Warn(ctx context.Context, msg string, attrs ...logger_api.Attri
 
 // Error outputs messages using error level.
 func (l *Logger) Error(ctx context.Context, msg string, attrs ...logger_api.Attribute) {
-	l.recordError(ctx, msg, attrs...)
+	if l.level.Level() > slog.LevelError {
+		return
+	}
+
+	l.handleErrorMessage(ctx, msg, attrs...)
 }
 
 // Internal outputs messages using the custom internal level.
@@ -176,15 +184,11 @@ func (l *Logger) Internal(ctx context.Context, msg string, attrs ...logger_api.A
 	l.logger.Log(ctx, levelInternal, msg, mFields...)
 }
 
-func (l *Logger) recordError(ctx context.Context, msg string, attrs ...logger_api.Attribute) {
+func (l *Logger) handleErrorMessage(ctx context.Context, msg string, attrs ...logger_api.Attribute) {
 	var (
 		mFields = l.mergeFieldsWithCtx(ctx, attrs)
 		pc      uintptr
 	)
-
-	if l.level.Level() > slog.LevelError {
-		return
-	}
 
 	fr, skipped, ok := pickCallerFrame(2)
 	if ok {
@@ -226,7 +230,7 @@ func (l *Logger) printErrorStackTrace(record *slog.Record, skip int) {
 	}
 
 	if l.errorStackTrace == ErrorStackTraceModeDefault {
-		_, _ = fmt.Print(takeStacktrace(skip))
+		_, _ = fmt.Fprint(os.Stderr, takeStacktrace(skip))
 		return
 	}
 
@@ -250,36 +254,42 @@ func pickCallerFrame(startSkip int) (runtime.Frame, int, bool) {
 
 	for {
 		fr, more := frames.Next()
-		if !more {
-			return runtime.Frame{}, skipped, false
-		}
 
-		full := fr.Function
-
-		// skip frames from the logger package itself
-		if strings.Contains(full, loggerPkgHint) {
+		if shouldSkip(fr.Function) {
 			skipped++
-			continue
-		}
+			if !more {
+				break
+			}
 
-		// skip wrapper frames that implement logger-like methods, if any
-		name := full
-		if i := strings.LastIndex(full, "."); i >= 0 && i < len(full)-1 {
-			name = full[i+1:]
-		}
-
-		if isLogMethod(name) {
-			skipped++
 			continue
 		}
 
 		return fr, skipped, true
 	}
+
+	return runtime.Frame{}, skipped, false
 }
 
 func isLogMethod(name string) bool {
 	_, ok := logMethodNames[name]
 	return ok
+}
+
+func shouldSkip(name string) bool {
+	if strings.Contains(name, loggerPkgHint) {
+		return true
+	}
+
+	return isLogMethod(lastSegment(name))
+}
+
+func lastSegment(fn string) string {
+	// skip wrapper frames that implement logger-like methods, if any
+	if i := strings.LastIndex(fn, "."); i >= 0 && i < len(fn)-1 {
+		return fn[i+1:]
+	}
+
+	return fn
 }
 
 // Fatal outputs message using fatal level.
@@ -360,12 +370,6 @@ func (l *Logger) Level() string {
 	}
 
 	return "unknown"
-}
-
-// SetErrorStacktrace lets one choose the runtime stacktrace format that
-// error messages can show.
-func (l *Logger) SetErrorStacktrace(mode ErrorStackTraceMode) {
-	l.errorStackTrace = mode
 }
 
 // SetContextFieldExtractor adds a custom function to extract values from the
