@@ -27,6 +27,8 @@ var (
 		levelInternal: "INTERNAL",
 	}
 
+	// These are the log methods that we want to skip when printing stack
+	// traces.
 	logMethodNames = map[string]struct{}{
 		"Debug": {}, "Debugf": {}, "Debugw": {},
 		"Info": {}, "Infof": {}, "Infow": {},
@@ -40,10 +42,6 @@ var (
 type ErrorStackTraceMode string
 
 const (
-	// ErrorStackTraceModeDisabled disables error stack trace generation and
-	// output.
-	ErrorStackTraceModeDisabled ErrorStackTraceMode = "disabled"
-
 	// ErrorStackTraceModeDefault enables default stack trace generation and
 	// output for error logs using fmt.Print to stderr.
 	ErrorStackTraceModeDefault ErrorStackTraceMode = "default"
@@ -225,16 +223,17 @@ func (l *Logger) handleErrorMessage(ctx context.Context, msg string, attrs ...lo
 }
 
 func (l *Logger) printErrorStackTrace(record *slog.Record, skip int) {
-	if l.errorStackTrace == ErrorStackTraceModeDisabled || l.errorStackTrace == "" {
-		return
-	}
-
 	if l.errorStackTrace == ErrorStackTraceModeDefault {
 		_, _ = fmt.Fprint(os.Stderr, takeStacktrace(skip))
 		return
 	}
 
-	record.AddAttrs(slog.String("stack", takeStacktrace(skip)))
+	if l.errorStackTrace == ErrorStackTraceModeStructured {
+		record.AddAttrs(slog.String("stack", takeStacktrace(skip)))
+		return
+	}
+
+	// no stack trace
 }
 
 func pickCallerFrame(startSkip int) (runtime.Frame, int, bool) {
