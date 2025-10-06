@@ -21,6 +21,7 @@ func newStacktrace() *stacktrace {
 func (s *stacktrace) free() {
 	s.pcs = nil
 	s.frames = nil
+	s.storage = nil
 }
 
 func (s *stacktrace) next() (runtime.Frame, bool) {
@@ -77,6 +78,8 @@ func (sf *stackFormatter) FormatStack(stack *stacktrace) {
 }
 
 // FormatFrame formats the given frame.
+//
+//revive:disable:unhandled-error
 func (sf *stackFormatter) FormatFrame(frame runtime.Frame) {
 	sf.s.WriteString(frame.Function)
 	sf.s.WriteString("\n")

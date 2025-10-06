@@ -1,7 +1,7 @@
 package logger
 
 import (
-	"golang.org/x/exp/slog"
+	"log/slog"
 )
 
 type logLeveler struct {

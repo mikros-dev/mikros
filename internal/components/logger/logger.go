@@ -4,29 +4,52 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
 
-	"golang.org/x/exp/slog"
-
 	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
-	"github.com/mikros-dev/mikros/components/logger"
 )
 
 const (
-	levelFatal               = slog.Level(12)
-	levelInternal            = slog.Level(-2)
-	fatalExitCode            = 1
-	skippedStacktraceCallers = 3
+	levelFatal    = slog.Level(12)
+	levelInternal = slog.Level(-2)
+	fatalExitCode = 1
+	loggerPkgHint = "/internal/components/logger"
 )
 
-var levelNames = map[slog.Leveler]string{
-	levelFatal:    "FATAL",
-	levelInternal: "INTERNAL",
-}
+var (
+	levelNames = map[slog.Leveler]string{
+		levelFatal:    "FATAL",
+		levelInternal: "INTERNAL",
+	}
+
+	// These are the log methods that we want to skip when printing stack
+	// traces.
+	logMethodNames = map[string]struct{}{
+		"Debug": {}, "Debugf": {}, "Debugw": {},
+		"Info": {}, "Infof": {}, "Infow": {},
+		"Warn": {}, "Warnf": {}, "Warnw": {},
+		"Error": {}, "Errorf": {}, "Errorw": {},
+		"Fatal": {}, "Fatalf": {}, "Fatalw": {},
+	}
+)
+
+// ErrorStackTraceMode defines the mode for formatting stack traces in error logs.
+type ErrorStackTraceMode string
+
+const (
+	// ErrorStackTraceModeDefault enables default stack trace generation and
+	// output for error logs using fmt.Print to stderr.
+	ErrorStackTraceModeDefault ErrorStackTraceMode = "default"
+
+	// ErrorStackTraceModeStructured formats stack traces in a structured
+	// representation, suitable for machine parsing.
+	ErrorStackTraceModeStructured ErrorStackTraceMode = "structured"
+)
 
 type (
 	// ContextFieldExtractor is a function that receives a context and should
@@ -34,25 +57,28 @@ type (
 	ContextFieldExtractor func(ctx context.Context) []logger_api.Attribute
 )
 
+// Logger represents a structured logger with multiple log levels and
+// context-aware attributes.
 type Logger struct {
-	showErrorStacktrace bool
-	logger              *slog.Logger
-	errorLogger         *slog.Logger
-	level               *logLeveler
-	fieldExtractor      ContextFieldExtractor
+	errorStackTrace ErrorStackTraceMode
+	logger          *slog.Logger
+	errorLogger     *slog.Logger
+	level           *logLeveler
+	fieldExtractor  ContextFieldExtractor
 }
 
+// Options represents customizable settings for configuring logger behaviors
+// and attributes in a structured logging system.
 type Options struct {
-	TextOutput             bool
-	DiscardMessages        bool
-	DisableErrorStacktrace bool
-	FixedAttributes        map[string]string
+	TextOutput      bool
+	DiscardMessages bool
+	ErrorStackTrace string
+	FixedAttributes map[string]string
 }
 
 // New creates a new Logger interface for applications.
 func New(options Options) *Logger {
 	var (
-		attrs []slog.Attr
 		level = newLogLeveler(slog.LevelInfo)
 		opts  = &slog.HandlerOptions{
 			Level: level,
@@ -80,9 +106,20 @@ func New(options Options) *Logger {
 				return a
 			},
 		}
+		l, e = createLoggers(options, opts)
 	)
 
+	return &Logger{
+		errorStackTrace: ErrorStackTraceMode(options.ErrorStackTrace),
+		logger:          l,
+		errorLogger:     e,
+		level:           level,
+	}
+}
+
+func createLoggers(options Options, opts *slog.HandlerOptions) (*slog.Logger, *slog.Logger) {
 	// Adds custom fixed attributes into every log message.
+	var attrs []slog.Attr
 	for k, v := range options.FixedAttributes {
 		attrs = append(attrs, slog.String(k, v))
 	}
@@ -94,10 +131,10 @@ func New(options Options) *Logger {
 
 	// Creates a specific log handler so every error message can have its source
 	// in the output.
-	opts.AddSource = true
-	errHandler := slog.NewJSONHandler(os.Stdout, opts).WithAttrs(attrs)
+	opts.AddSource = false
+	errHandler := slog.NewJSONHandler(os.Stderr, opts).WithAttrs(attrs)
 	if options.TextOutput {
-		errHandler = slog.NewTextHandler(os.Stdout, opts).WithAttrs(attrs)
+		errHandler = slog.NewTextHandler(os.Stderr, opts).WithAttrs(attrs)
 	}
 
 	// Create our handlers
@@ -109,12 +146,7 @@ func New(options Options) *Logger {
 		e = l
 	}
 
-	return &Logger{
-		showErrorStacktrace: !options.DisableErrorStacktrace,
-		logger:              l,
-		errorLogger:         e,
-		level:               level,
-	}
+	return l, e
 }
 
 // Debug outputs messages using debug level.
@@ -137,31 +169,126 @@ func (l *Logger) Warn(ctx context.Context, msg string, attrs ...logger_api.Attri
 
 // Error outputs messages using error level.
 func (l *Logger) Error(ctx context.Context, msg string, attrs ...logger_api.Attribute) {
-	l.error(ctx, msg, attrs...)
-}
-
-func (l *Logger) error(ctx context.Context, msg string, attrs ...logger_api.Attribute) {
-	var (
-		mFields = l.mergeFieldsWithCtx(ctx, attrs)
-		pcs     [1]uintptr
-	)
-
 	if l.level.Level() > slog.LevelError {
 		return
 	}
 
-	runtime.Callers(3, pcs[:]) // skip [Callers, error]
-	r := slog.NewRecord(time.Now(), slog.LevelError, msg, pcs[0])
+	l.handleErrorMessage(ctx, msg, attrs...)
+}
+
+// Internal outputs messages using the custom internal level.
+func (l *Logger) Internal(ctx context.Context, msg string, attrs ...logger_api.Attribute) {
+	mFields := l.mergeFieldsWithCtx(ctx, attrs)
+	l.logger.Log(ctx, levelInternal, msg, mFields...)
+}
+
+func (l *Logger) handleErrorMessage(ctx context.Context, msg string, attrs ...logger_api.Attribute) {
+	var (
+		mFields = l.mergeFieldsWithCtx(ctx, attrs)
+		pc      uintptr
+	)
+
+	fr, skipped, ok := pickCallerFrame(2)
+	if ok {
+		pc = fr.PC
+	}
+
+	r := slog.NewRecord(time.Now(), slog.LevelError, msg, pc)
 
 	if len(mFields) > 0 {
 		r.Add(mFields...)
 	}
 
-	_ = l.errorLogger.Handler().Handle(ctx, r)
+	if ok {
+		var (
+			funcName = fr.Function
+			file     = fr.File
+			fileBase = filepath.Base(file)
+		)
 
-	if l.showErrorStacktrace {
-		fmt.Print(takeStacktrace(skippedStacktraceCallers))
+		file = filepath.Join(filepath.Base(filepath.Dir(file)), fileBase)
+
+		r.AddAttrs(slog.Any(slog.SourceKey, &slog.Source{
+			Function: funcName,
+			File:     file,
+			Line:     fr.Line,
+		}))
 	}
+
+	l.printErrorStackTrace(&r, 2+skipped)
+
+	if err := l.errorLogger.Handler().Handle(ctx, r); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "error logging error: %v\n", err)
+	}
+}
+
+func (l *Logger) printErrorStackTrace(record *slog.Record, skip int) {
+	if l.errorStackTrace == ErrorStackTraceModeDefault {
+		_, _ = fmt.Fprint(os.Stderr, takeStacktrace(skip))
+		return
+	}
+
+	if l.errorStackTrace == ErrorStackTraceModeStructured {
+		record.AddAttrs(slog.String("stack", takeStacktrace(skip)))
+		return
+	}
+
+	// no stack trace
+}
+
+func pickCallerFrame(startSkip int) (runtime.Frame, int, bool) {
+	var (
+		pcs [32]uintptr
+		n   = runtime.Callers(startSkip, pcs[:])
+	)
+
+	if n == 0 {
+		return runtime.Frame{}, 0, false
+	}
+
+	var (
+		skipped = 0
+		frames  = runtime.CallersFrames(pcs[:n])
+	)
+
+	for {
+		fr, more := frames.Next()
+
+		if shouldSkip(fr.Function) {
+			skipped++
+			if !more {
+				break
+			}
+
+			continue
+		}
+
+		return fr, skipped, true
+	}
+
+	return runtime.Frame{}, skipped, false
+}
+
+func isLogMethod(name string) bool {
+	_, ok := logMethodNames[name]
+	return ok
+}
+
+func shouldSkip(name string) bool {
+	if strings.Contains(name, loggerPkgHint) {
+		return true
+	}
+
+	return isLogMethod(lastSegment(name))
+}
+
+func lastSegment(fn string) string {
+	// skip wrapper frames that implement logger-like methods, if any
+	if i := strings.LastIndex(fn, "."); i >= 0 && i < len(fn)-1 {
+		return fn[i+1:]
+	}
+
+	return fn
 }
 
 // Fatal outputs message using fatal level.
@@ -244,90 +371,8 @@ func (l *Logger) Level() string {
 	return "unknown"
 }
 
-// SetErrorStacktrace lets one enable or disable the runtime stacktrace that
-// error messages can show.
-func (l *Logger) SetErrorStacktrace(enabled bool) {
-	l.showErrorStacktrace = enabled
-}
-
 // SetContextFieldExtractor adds a custom function to extract values from the
 // context and add them into the log messages.
 func (l *Logger) SetContextFieldExtractor(extractor ContextFieldExtractor) {
 	l.fieldExtractor = extractor
-}
-
-func (l *Logger) Debugf(ctx context.Context, msg string, attrs ...map[string]interface{}) {
-	var loggerFields []logger_api.Attribute
-	if len(attrs) > 0 {
-		for k, v := range attrs[0] {
-			loggerFields = append(loggerFields, logger.Any(k, v))
-		}
-	}
-
-	l.Debug(ctx, msg, loggerFields...)
-}
-
-func (l *Logger) Infof(ctx context.Context, msg string, attrs ...map[string]interface{}) {
-	var loggerFields []logger_api.Attribute
-	if len(attrs) > 0 {
-		for k, v := range attrs[0] {
-			loggerFields = append(loggerFields, logger.Any(k, v))
-		}
-	}
-
-	l.Info(ctx, msg, loggerFields...)
-}
-
-func (l *Logger) Warnf(ctx context.Context, msg string, attrs ...map[string]interface{}) {
-	var loggerFields []logger_api.Attribute
-	if len(attrs) > 0 {
-		for k, v := range attrs[0] {
-			loggerFields = append(loggerFields, logger.Any(k, v))
-		}
-	}
-
-	l.Warn(ctx, msg, loggerFields...)
-}
-
-func (l *Logger) Errorf(ctx context.Context, msg string, attrs ...map[string]interface{}) {
-	var loggerFields []logger_api.Attribute
-	if len(attrs) > 0 {
-		for k, v := range attrs[0] {
-			loggerFields = append(loggerFields, logger.Any(k, v))
-		}
-	}
-
-	l.Error(ctx, msg, loggerFields...)
-}
-
-func (l *Logger) Fatalf(ctx context.Context, msg string, attrs ...map[string]interface{}) {
-	var loggerFields []logger_api.Attribute
-	if len(attrs) > 0 {
-		for k, v := range attrs[0] {
-			loggerFields = append(loggerFields, logger.Any(k, v))
-		}
-	}
-
-	l.Fatal(ctx, msg, loggerFields...)
-}
-
-func (l *Logger) InnerLogger() *slog.Logger {
-	return l.logger
-}
-
-// Internal outputs messages using the internal level.
-func (l *Logger) Internal(ctx context.Context, msg string, attrs ...logger_api.Attribute) {
-	mFields := l.mergeFieldsWithCtx(ctx, attrs)
-	l.logger.Log(ctx, levelInternal, msg, mFields...)
-}
-
-func (l *Logger) Internalf(ctx context.Context, msg string, attrs ...map[string]interface{}) {
-	var loggerFields []logger_api.Attribute
-	if len(attrs) > 0 {
-		for k, v := range attrs[0] {
-			loggerFields = append(loggerFields, logger.Any(k, v))
-		}
-	}
-
-	l.Internal(ctx, msg, loggerFields...)
 }

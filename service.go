@@ -93,17 +93,22 @@ func initService(opt *options.NewServiceOptions) (*Service, error) {
 		discardMessages = *defs.Tests.DiscardLogMessages
 	}
 
+	attributes := map[string]string{
+		"service.name":    defs.ServiceName().String(),
+		"service.type":    defs.ServiceTypesAsString(),
+		"service.version": defs.Version,
+		"service.env":     envs.DeploymentEnv().String(),
+		"service.product": defs.Product,
+	}
+	for k, v := range defs.Log.Attributes {
+		attributes[k] = v
+	}
+
 	// Initialize the service logger system.
 	serviceLogger := mlogger.New(mlogger.Options{
-		DiscardMessages:        discardMessages,
-		DisableErrorStacktrace: !defs.Log.ErrorStacktrace,
-		FixedAttributes: map[string]string{
-			"service.name":    defs.ServiceName().String(),
-			"service.type":    defs.ServiceTypesAsString(),
-			"service.version": defs.Version,
-			"service.env":     envs.DeploymentEnv().String(),
-			"service.product": defs.Product,
-		},
+		DiscardMessages: discardMessages,
+		ErrorStackTrace: defs.Log.ErrorStackTrace,
+		FixedAttributes: attributes,
 	})
 
 	if defs.Log.Level != "" {
@@ -599,7 +604,7 @@ func (s *Service) Errors() errors_api.ErrorAPI {
 	return s.errors
 }
 
-// Abort is a helper method to abort services in the right way, when external
+// Abort is a helper method to abort services in the right way when external
 // initialization is needed.
 func (s *Service) Abort(message string, err error) {
 	s.abort(context.TODO(), merrors.NewAbortError(message, err))
@@ -629,11 +634,12 @@ func (s *Service) DeployEnvironment() definition.ServiceDeploy {
 	return s.envs.DeploymentEnv()
 }
 
-// tags gives a map of current service tags to be used with external resources.
+// tags function gives a map of current service tags to be used with external
+// resources.
 func (s *Service) tags() map[string]string {
 	serviceType := s.definitions.ServiceTypesAsString()
 	if strings.Contains(serviceType, ",") {
-		// SQS tags does not accept commas, just Unicode letters, digits,
+		// SQS tag does not accept commas, just Unicode letters, digits,
 		// whitespace, or one of these symbols: _ . : / = + - @
 		serviceType = "hybrid"
 	}
@@ -664,10 +670,10 @@ func (s *Service) Feature(ctx context.Context, target interface{}) error {
 		f := reflect.ValueOf(feature)
 		if externalApi, ok := feature.(plugin.FeatureExternalAPI); ok {
 			// If the feature has implemented the plugin.FeatureExternalAPI,
-			// we give priority for it, trying to check if its returned
+			// we give priority to it, trying to check if its returned
 			// interface{} has the desired target interface. This way, we let the
 			// feature decide if it is going to implement its public interface
-			// itself or of it will return something that implements.
+			// itself or if it will return something that implements.
 			f = reflect.ValueOf(externalApi.ServiceAPI())
 		}
 
