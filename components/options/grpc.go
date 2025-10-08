@@ -15,8 +15,9 @@ type GrpcServiceOptions struct {
 	ProtoServiceDescription *grpc.ServiceDesc
 }
 
+// Kind returns the type of service as definition.ServiceTypeGRPC.
 func (g *GrpcServiceOptions) Kind() definition.ServiceType {
-	return definition.ServiceType_gRPC
+	return definition.ServiceTypeGRPC
 }
 
 // GrpcClient is a structure to set information about a gRPC client that will
@@ -30,6 +31,8 @@ type GrpcClient struct {
 	NewClientFunction interface{}
 }
 
+// Validate checks if the GrpcClient is properly initialized and its
+// NewClientFunction is a valid function.
 func (g *GrpcClient) Validate() error {
 	if g.NewClientFunction == nil {
 		return fmt.Errorf("client '%s' does not have its API initialized", g.ServiceName)

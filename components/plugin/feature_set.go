@@ -11,6 +11,8 @@ type FeatureSet struct {
 	orderedFeatures []*registeredFeature
 }
 
+// FeatureSetIterator provides iteration capabilities over a collection of
+// registered features in a FeatureSet.
 type FeatureSetIterator struct {
 	index    int
 	features []*registeredFeature
@@ -68,7 +70,12 @@ func (s *FeatureSet) getDependentFeatures(names []string) map[string]Feature {
 	return deps
 }
 
-func (s *FeatureSet) initializeFeature(ctx context.Context, feature Feature, allow *CanBeInitializedOptions, create *InitializeOptions) error {
+func (s *FeatureSet) initializeFeature(
+	ctx context.Context,
+	feature Feature,
+	allow *CanBeInitializedOptions,
+	create *InitializeOptions,
+) error {
 	enabled := feature.CanBeInitialized(allow)
 	feature.UpdateInfo(UpdateInfoEntry{Enabled: enabled, Logger: create.Logger, Errors: create.Errors})
 
@@ -99,6 +106,7 @@ func (s *FeatureSet) Register(name string, feature Feature, dependencies ...stri
 	}
 }
 
+// Feature retrieves the requested feature by its name if it has been registered.
 func (s *FeatureSet) Feature(name string) (Feature, error) {
 	feature, ok := s.features[name]
 	if !ok {
@@ -108,6 +116,8 @@ func (s *FeatureSet) Feature(name string) (Feature, error) {
 	return feature.feature, nil
 }
 
+// Iterator returns a new FeatureSetIterator for iterating over the ordered
+// features in the FeatureSet.
 func (s *FeatureSet) Iterator() *FeatureSetIterator {
 	return &FeatureSetIterator{
 		features: s.orderedFeatures,
@@ -115,10 +125,13 @@ func (s *FeatureSet) Iterator() *FeatureSetIterator {
 	}
 }
 
+// Count returns the total number of features registered in the FeatureSet.
 func (s *FeatureSet) Count() int {
 	return len(s.features)
 }
 
+// Append adds all registered features from the given FeatureSet into the current
+// FeatureSet, maintaining their order.
 func (s *FeatureSet) Append(features *FeatureSet) {
 	if features != nil {
 		for _, feature := range features.orderedFeatures {
@@ -128,6 +141,8 @@ func (s *FeatureSet) Append(features *FeatureSet) {
 	}
 }
 
+// StartAll iterates over all registered features and invokes their Start
+// method if they implement FeatureController.
 func (s *FeatureSet) StartAll(ctx context.Context, srv interface{}) error {
 	for _, feature := range s.features {
 		if p, ok := feature.feature.(FeatureController); ok {
@@ -140,6 +155,8 @@ func (s *FeatureSet) StartAll(ctx context.Context, srv interface{}) error {
 	return nil
 }
 
+// CleanupAll iterates through all features and calls their Cleanup method
+// if they implement FeatureController.
 func (s *FeatureSet) CleanupAll(ctx context.Context) error {
 	for _, feature := range s.features {
 		if p, ok := feature.feature.(FeatureController); ok {
@@ -152,6 +169,8 @@ func (s *FeatureSet) CleanupAll(ctx context.Context) error {
 	return nil
 }
 
+// Next retrieves the next Feature in the iteration. Returns the Feature and
+// true if found.
 func (i *FeatureSetIterator) Next() (Feature, bool) {
 	if i.index < len(i.features) {
 		e := i.features[i.index]
@@ -162,6 +181,8 @@ func (i *FeatureSetIterator) Next() (Feature, bool) {
 	return nil, false
 }
 
+// Reset sets the iterator's index back to the beginning, allowing iteration to
+// start over from the first feature.
 func (i *FeatureSetIterator) Reset() {
 	i.index = 0
 }

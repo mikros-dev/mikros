@@ -19,6 +19,8 @@ import (
 // Definitions is a structure representation of a 'service.toml' file. It holds
 // all service information that will be used to initialize it as well as all
 // features it will have when executing.
+//
+//revive:disable:line-length-limit
 type Definitions struct {
 	Name     string                            `toml:"name" validate:"required"`
 	Types    []string                          `toml:"types" validate:"required,single_script,no_duplicated_service,dive,service_type"`
@@ -38,21 +40,22 @@ type Definitions struct {
 	externalServices      map[string]ExternalServiceEntry
 }
 
+// Log represents configuration settings for logging in a service.
 type Log struct {
 	ErrorStackTrace string            `toml:"error_stack_trace,omitempty" validate:"omitempty,oneof=default disabled structured" default:"default"`
 	Level           string            `toml:"level,omitempty" validate:"omitempty,oneof=info debug error warn internal"`
 	Attributes      map[string]string `toml:"attributes,omitempty"`
 }
 
+// GrpcClient defines the configuration settings for a gRPC coupled client.
 type GrpcClient struct {
 	Port int32  `toml:"port"`
 	Host string `toml:"host"`
 }
 
 // Features is a structure that defines a list of features that a service may
-// use or not when executing. By convention, all features are turned off by
-// default, and should be explicitly enabled when desired using the 'enabled'
-// key.
+// use or not when executing. By convention, all features are turned off
+// by default and should be explicitly enabled when desired using the 'enabled' key.
 type Features struct {
 	// externalFeatures holds settings from all external features that have
 	// support for them.
@@ -106,19 +109,19 @@ func New() (*Definitions, error) {
 func (d *Definitions) Validate() error {
 	validate := validator.New()
 
-	if err := validate.RegisterValidationCtx("version", validateVersion); err != nil {
+	if err := validate.RegisterValidationCtx("version", versionValidator); err != nil {
 		return err
 	}
 
-	if err := validate.RegisterValidationCtx("service_type", validateServiceType); err != nil {
+	if err := validate.RegisterValidationCtx("service_type", serviceTypeValidator); err != nil {
 		return err
 	}
 
-	if err := validate.RegisterValidationCtx("single_script", ensureScriptTypeIsUnique); err != nil {
+	if err := validate.RegisterValidationCtx("single_script", scriptTypeUniqueValidator); err != nil {
 		return err
 	}
 
-	if err := validate.RegisterValidationCtx("no_duplicated_service", checkDuplicatedServices); err != nil {
+	if err := validate.RegisterValidationCtx("no_duplicated_service", duplicatedServicesValidator); err != nil {
 		return err
 	}
 
@@ -161,6 +164,8 @@ func (d *Definitions) ServiceName() service.Name {
 	return service.FromString(d.Name)
 }
 
+// ServiceTypesAsString converts all service types in the definitions to a
+// single comma-separated string.
 func (d *Definitions) ServiceTypesAsString() string {
 	var s []string
 
@@ -287,29 +292,11 @@ func (d *Definitions) LoadCustomServiceDefinitions(srv interface{}) error {
 		}
 
 		if fieldTag.IsDefinitions {
-			// Serialize service settings back into TOML for us
-			if err := toml.NewEncoder(&buf).Encode(d.Service); err != nil {
+			if err := d.handleServiceDefinitions(&buf, i, v, field); err != nil {
 				return err
 			}
 
-			fieldVal := v.Field(i)
-			if fieldVal.IsNil() {
-				fieldVal.Set(reflect.New(field.Type.Elem()))
-			}
-
-			// Decode TOML into the custom service structure
-			if _, err := toml.Decode(buf.String(), fieldVal.Interface()); err != nil {
-				return err
-			}
-
-			// Validates the settings just loaded, if the filed implements
-			// the validator interface.
-			if validador, ok := fieldVal.Interface().(Validator); ok {
-				if err := validador.Validate(); err != nil {
-					return err
-				}
-			}
-
+			// Only one service definition is allowed.
 			break
 		}
 	}
@@ -317,7 +304,38 @@ func (d *Definitions) LoadCustomServiceDefinitions(srv interface{}) error {
 	return nil
 }
 
-// Path returns the original path that was loaded to the current definitions.
+func (d *Definitions) handleServiceDefinitions(
+	buf *bytes.Buffer,
+	i int,
+	v reflect.Value,
+	field reflect.StructField,
+) error {
+	// Serialize service settings back into TOML for us
+	if err := toml.NewEncoder(buf).Encode(d.Service); err != nil {
+		return err
+	}
+
+	fieldVal := v.Field(i)
+	if fieldVal.IsNil() {
+		fieldVal.Set(reflect.New(field.Type.Elem()))
+	}
+
+	// Decode TOML into the custom service structure
+	if _, err := toml.Decode(buf.String(), fieldVal.Interface()); err != nil {
+		return err
+	}
+
+	// Validates the settings just loaded.
+	if validador, ok := fieldVal.Interface().(Validator); ok {
+		if err := validador.Validate(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Path returns the original path loaded to the current definitions.
 func (d *Definitions) Path() string {
 	return d.path
 }

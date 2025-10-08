@@ -7,8 +7,8 @@ import (
 	"github.com/mikros-dev/mikros/components/definition"
 )
 
-// HttpServiceOptions defines runtime options for an HTTP service.
-type HttpServiceOptions struct {
+// HTTPServiceOptions defines runtime options for an HTTP service.
+type HTTPServiceOptions struct {
 	// CORSStrict controls how invalid CORS configurations are handled if a
 	// CORS middleware implementation is supplied. When true, invalid CORS
 	// settings cause service initialization to fail. Otherwise, a warning
@@ -45,6 +45,8 @@ type HttpServiceOptions struct {
 	Middlewares []func(handler http.Handler) http.Handler
 }
 
-func (h *HttpServiceOptions) Kind() definition.ServiceType {
-	return definition.ServiceType_HTTP
+// Kind returns the service type, which is always definition.ServiceTypeHTTP
+// for HTTPServiceOptions.
+func (h *HTTPServiceOptions) Kind() definition.ServiceType {
+	return definition.ServiceTypeHTTP
 }

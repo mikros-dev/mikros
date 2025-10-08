@@ -23,6 +23,7 @@ import (
 	"github.com/mikros-dev/mikros/components/service"
 )
 
+// Server represents the gRPC service server.
 type Server struct {
 	port             service.ServerPort
 	server           *grpc.Server
@@ -32,32 +33,32 @@ type Server struct {
 	protoServiceDesc *grpc.ServiceDesc
 }
 
+// New creates a new Server struct.
 func New() *Server {
 	return &Server{}
 }
 
+// Name gives the implementation service name.
 func (s *Server) Name() string {
-	return definition.ServiceType_gRPC.String()
+	return definition.ServiceTypeGRPC.String()
 }
 
+// Info returns service fields to be logged.
 func (s *Server) Info() []logger_api.Attribute {
 	return []logger_api.Attribute{
 		logger.String("service.address", fmt.Sprintf(":%v", s.port.Int32())),
-		logger.String("service.mode", definition.ServiceType_gRPC.String()),
+		logger.String("service.mode", definition.ServiceTypeGRPC.String()),
 	}
 }
 
+// Run starts the gRPC server.
 func (s *Server) Run(_ context.Context, srv interface{}) error {
 	s.server.RegisterService(s.protoServiceDesc, srv)
 	reflection.Register(s.server)
-
-	if err := s.server.Serve(s.listener); err != nil {
-		return err
-	}
-
-	return nil
+	return s.server.Serve(s.listener)
 }
 
+// Initialize initializes the gRPC server internals.
 func (s *Server) Initialize(_ context.Context, opt *plugin.ServiceOptions) error {
 	if err := s.validate(opt); err != nil {
 		return err
@@ -121,6 +122,7 @@ func (s *Server) validate(opt *plugin.ServiceOptions) error {
 	return nil
 }
 
+// Stop stops the gRPC server.
 func (s *Server) Stop(_ context.Context) error {
 	// Nothing to do here
 	return nil

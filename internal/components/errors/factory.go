@@ -7,14 +7,19 @@ import (
 	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
 )
 
+// Factory provides error creation utilities.
 type Factory struct {
 	serviceName string
-	logger      logger_api.LoggerAPI
+	logger      logger_api.API
 }
 
+// FactoryOptions represents configuration options for creating a factory instance.
 type FactoryOptions struct {
+	// ServiceName specifies the name of the service associated with the factory.
 	ServiceName string
-	Logger      logger_api.LoggerAPI
+
+	// Logger provides a logging interface for the factory.
+	Logger logger_api.API
 }
 
 // NewFactory creates a new Factory object.

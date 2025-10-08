@@ -21,7 +21,7 @@ type ProblemOptions struct {
 
 	// Logger is used for logging errors that occur during response writing. If
 	// nil, errors will be logged using the standard log package.
-	Logger logger_api.LoggerAPI
+	Logger logger_api.API
 
 	// Headers contains additional HTTP headers to include in the response.
 	Headers map[string]string
@@ -49,7 +49,7 @@ func Problem(ctx context.Context, w http.ResponseWriter, err error, options ...P
 		return
 	}
 
-	problem(ctx, w, err, problemOpts)
+	writeProblem(ctx, w, err, problemOpts)
 }
 
 func errorToStatusCode(err error) int {
@@ -72,7 +72,7 @@ func errorToStatusCode(err error) int {
 	}
 }
 
-func problem(ctx context.Context, w http.ResponseWriter, err error, options ProblemOptions) {
+func writeProblem(ctx context.Context, w http.ResponseWriter, err error, options ProblemOptions) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	for k, v := range options.Headers {
 		w.Header().Set(k, v)
@@ -98,7 +98,7 @@ type SuccessOptions struct {
 
 	// Logger is used for logging errors that occur during response writing. If
 	// nil, errors will be logged using the standard log package.
-	Logger logger_api.LoggerAPI
+	Logger logger_api.API
 
 	// Headers contains additional HTTP headers to include in the response.
 	Headers map[string]string
@@ -127,10 +127,10 @@ func Success(ctx context.Context, w http.ResponseWriter, data interface{}, optio
 		return
 	}
 
-	success(ctx, w, data, successOpts)
+	writeSuccess(ctx, w, data, successOpts)
 }
 
-func success(ctx context.Context, w http.ResponseWriter, data interface{}, options SuccessOptions) {
+func writeSuccess(ctx context.Context, w http.ResponseWriter, data interface{}, options SuccessOptions) {
 	if data == nil {
 		if options.HTTPStatusCode == 0 {
 			options.HTTPStatusCode = http.StatusNoContent

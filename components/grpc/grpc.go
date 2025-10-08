@@ -25,6 +25,8 @@ type ClientConnectionOptions struct {
 	Tracker               behavior.Tracker
 }
 
+// ConnectionOptions defines the configuration details for establishing
+// a connection with a gRPC.
 type ConnectionOptions struct {
 	Host      string
 	Namespace string
@@ -42,7 +44,14 @@ func ClientConnection(options *ClientConnectionOptions) (*grpc.ClientConn, error
 	conn, err := grpc.NewClient(
 		address,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithUnaryInterceptor(gRPCClientUnaryInterceptor(options.Context, options.Tracker, options.ServiceName, options.ClientName)),
+		grpc.WithUnaryInterceptor(
+			gRPCClientUnaryInterceptor(
+				options.Context,
+				options.Tracker,
+				options.ServiceName,
+				options.ClientName,
+			),
+		),
 	)
 	if err != nil {
 		return nil, err
@@ -68,18 +77,29 @@ func getClientConnectionAddress(options *ClientConnectionOptions) string {
 	return addr
 }
 
-func gRPCClientUnaryInterceptor(svcCtx *mcontext.ServiceContext, tracker behavior.Tracker, from, to service.Name) grpc.UnaryClientInterceptor {
-	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+func gRPCClientUnaryInterceptor(
+	svcCtx *mcontext.ServiceContext,
+	tracker behavior.Tracker,
+	from, to service.Name,
+) grpc.UnaryClientInterceptor {
+	return func(
+		ctx context.Context,
+		method string,
+		req, reply interface{},
+		cc *grpc.ClientConn,
+		invoker grpc.UnaryInvoker,
+		opts ...grpc.CallOption,
+	) error {
 		if tracker != nil {
-			trackId := tracker.Generate()
+			trackID := tracker.Generate()
 
 			// If we already have a tracker ID, we'll use it for later calls.
 			if trk, ok := tracker.Retrieve(ctx); ok {
-				trackId = trk
+				trackID = trk
 			}
 
 			// Adds the track ID on the context.
-			ctx = tracker.Add(ctx, trackId)
+			ctx = tracker.Add(ctx, trackID)
 		}
 
 		// Calls invoker with a new context.

@@ -23,7 +23,7 @@ type GlobalEnvs struct {
 
 	// Default connection ports
 	GrpcPort int32 `env:"MIKROS_GRPC_PORT,default_value=7070"`
-	HttpPort int32 `env:"MIKROS_HTTP_PORT,default_value=8080"`
+	HTTPPort int32 `env:"MIKROS_HTTP_PORT,default_value=8080"`
 }
 
 // postLoad is where any internal change must happen, according to the current
@@ -31,7 +31,7 @@ type GlobalEnvs struct {
 func (e *GlobalEnvs) postLoad() {
 	// Checks our real deployment environment
 	if e.isRunningTest() {
-		e.DeploymentEnv = definition.ServiceDeploy_Test
+		e.DeploymentEnv = definition.ServiceDeployTest
 	}
 }
 

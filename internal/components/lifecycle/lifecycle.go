@@ -6,12 +6,16 @@ import (
 	"github.com/mikros-dev/mikros/components/definition"
 )
 
-type LifecycleOptions struct {
+// Options defines the configuration for service lifecycle controls,
+// including the environment and test execution settings.
+type Options struct {
 	Env            definition.ServiceDeploy
 	ExecuteOnTests bool
 }
 
-func OnStart(ctx context.Context, s interface{}, opt *LifecycleOptions) error {
+// OnStart initializes the service lifecycle, invoking its OnStart method if
+// it implements ServiceLifecycleStarter.
+func OnStart(ctx context.Context, s interface{}, opt *Options) error {
 	if !shouldExecute(opt) {
 		return nil
 	}
@@ -23,7 +27,9 @@ func OnStart(ctx context.Context, s interface{}, opt *LifecycleOptions) error {
 	return nil
 }
 
-func OnFinish(ctx context.Context, s interface{}, opt *LifecycleOptions) {
+// OnFinish triggers the OnFinish lifecycle method for a service if it implements
+// ServiceLifecycleFinisher and execution is allowed.
+func OnFinish(ctx context.Context, s interface{}, opt *Options) {
 	if !shouldExecute(opt) {
 		return
 	}
@@ -33,10 +39,10 @@ func OnFinish(ctx context.Context, s interface{}, opt *LifecycleOptions) {
 	}
 }
 
-func shouldExecute(opt *LifecycleOptions) bool {
+func shouldExecute(opt *Options) bool {
 	// Do not execute lifecycle events by default in tests to force them mock
 	// features that are being initialized by the service.
-	if opt.Env == definition.ServiceDeploy_Test {
+	if opt.Env == definition.ServiceDeployTest {
 		return opt.ExecuteOnTests
 	}
 

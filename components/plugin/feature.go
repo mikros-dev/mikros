@@ -12,7 +12,7 @@ import (
 	"github.com/mikros-dev/mikros/components/testing"
 )
 
-// Feature is a set of methods that all framework feature, internal or external,
+// Feature is a set of methods that all framework features, internal or external,
 // must implement to be supported.
 type Feature interface {
 	// CanBeInitialized is the method executed to check if the feature is
@@ -52,7 +52,7 @@ type FeatureEntry interface {
 type UpdateInfoEntry struct {
 	Enabled bool
 	Name    string
-	Logger  logger_api.LoggerAPI
+	Logger  logger_api.API
 	Errors  errors_api.ErrorAPI
 }
 
@@ -125,9 +125,9 @@ type CanBeInitializedOptions struct {
 // InitializeOptions gathers all information passed to the Initialize method of
 // a Feature interface, allowing a feature to be properly initialized.
 type InitializeOptions struct {
-	Logger          logger_api.LoggerAPI
+	Logger          logger_api.API
 	Errors          errors_api.ErrorAPI
-	Env             env_api.EnvAPI
+	Env             env_api.API
 	Definitions     *definition.Definitions
 	Tags            map[string]string
 	ServiceContext  *mcontext.ServiceContext

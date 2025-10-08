@@ -52,6 +52,8 @@ func newServiceError(options *serviceErrorOptions) *ServiceError {
 	}
 }
 
+// FromGRPCStatus converts a gRPC status object into a standardized service
+// error format for better interoperability.
 func FromGRPCStatus(st *status.Status, from, to service.Name) error {
 	var (
 		msg    = st.Message()
@@ -78,16 +80,21 @@ func FromGRPCStatus(st *status.Status, from, to service.Name) error {
 	return &retErr
 }
 
+// WithCode attaches a numeric error code to the ServiceError.
 func (s *ServiceError) WithCode(code errors_api.Code) errors_api.Error {
 	s.err.Code = code.ErrorCode()
 	return s
 }
 
+// WithAttributes adds custom log attributes to the ServiceError, augmenting
+// the error context for detailed logging.
 func (s *ServiceError) WithAttributes(attrs ...logger_api.Attribute) errors_api.Error {
 	s.attributes = attrs
 	return s
 }
 
+// Submit logs the error details using the configured logger and returns the
+// underlying error for further handling.
 func (s *ServiceError) Submit(ctx context.Context) error {
 	// Display the error message onto the output
 	if s.logger != nil {
@@ -103,6 +110,7 @@ func (s *ServiceError) Submit(ctx context.Context) error {
 	return s.err
 }
 
+// Kind returns the string representation of the error's kind.
 func (s *ServiceError) Kind() string {
 	return s.err.Kind.String()
 }

@@ -32,6 +32,8 @@ var (
 	timeDurationType    = reflect.TypeOf(time.Duration(0))
 )
 
+// Options defines configuration options used to modify behavior when loading
+// environment variables.
 type Options struct {
 	Separator string
 }
@@ -43,6 +45,7 @@ type Env[T any] struct {
 	varName string
 }
 
+// Value gives access to the underlying value.
 func (e Env[T]) Value() T {
 	return e.value
 }
@@ -51,6 +54,7 @@ func (e Env[T]) String() string {
 	return fmt.Sprintf("%v", e.value)
 }
 
+// VarName gives access to the concrete env var name used to populate the value.
 func (e Env[T]) VarName() string {
 	return e.varName
 }
@@ -107,27 +111,38 @@ func Load(serviceName service.Name, target interface{}, options ...Options) erro
 			return fmt.Errorf("%w: %q", errorPointerField, f.Name)
 		}
 
-		value, key, ok := resolveEnv(serviceName, tag, opt)
-		if tag.Required && !ok && tag.DefaultValue == "" {
-			return fmt.Errorf("env: required env %q not set", tag.Name)
+		if err := handleField(serviceName, opt, tag, f, fv); err != nil {
+			return err
 		}
+	}
 
-		// If not found and no default, leave zero value — except Env[T], which
-		// we still populate to capture VarName.
-		if !ok && tag.DefaultValue == "" {
-			if isEnvWrapperType(f.Type) {
-				v, err := zeroEnvWrapperValue(f.Type, key)
-				if err != nil {
-					return err
-				}
+	return nil
+}
 
-				assignField(fv, v)
-			}
+func handleField(serviceName service.Name, opt Options, tag *envTag, f reflect.StructField, fv reflect.Value) error {
+	value, key, ok := resolveEnv(serviceName, tag, opt)
+	if tag.Required && !ok && tag.DefaultValue == "" {
+		return fmt.Errorf("env: required env %q not set", tag.Name)
+	}
 
-			continue
-		}
+	// If not found and no default, leave zero value — except Env[T], which
+	// we still populate to capture VarName.
+	if !ok && tag.DefaultValue == "" {
+		return handleZeroValue(f, fv, key)
+	}
 
-		v, err := coerceValue(f, value, key)
+	v, err := coerceValue(f, value, key)
+	if err != nil {
+		return err
+	}
+
+	assignField(fv, v)
+	return nil
+}
+
+func handleZeroValue(f reflect.StructField, fv reflect.Value, key string) error {
+	if isEnvWrapperType(f.Type) {
+		v, err := zeroEnvWrapperValue(f.Type, key)
 		if err != nil {
 			return err
 		}
@@ -248,7 +263,7 @@ func zeroEnvWrapperValue(t reflect.Type, key string) (reflect.Value, error) {
 	return reflect.Value{}, fmt.Errorf("unsupported Env wrapper type %v", t)
 }
 
-func coerceValue(sf reflect.StructField, value string, key string) (reflect.Value, error) {
+func coerceValue(sf reflect.StructField, value, key string) (reflect.Value, error) {
 	t := sf.Type
 
 	// Check for Env[T] types
@@ -286,6 +301,10 @@ func coerceValue(sf reflect.StructField, value string, key string) (reflect.Valu
 	}
 
 	// Scalar types
+	return coerceScalarValue(t, value)
+}
+
+func coerceScalarValue(t reflect.Type, value string) (reflect.Value, error) {
 	switch t.Kind() {
 	case reflect.String:
 		return reflect.ValueOf(value), nil

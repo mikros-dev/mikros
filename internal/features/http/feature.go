@@ -11,23 +11,29 @@ import (
 	"github.com/mikros-dev/mikros/components/plugin"
 )
 
+// Client is the http feature client.
 type Client struct {
 	plugin.Entry
 }
 
+// New creates the http feature.
 func New() *Client {
 	return &Client{}
 }
 
+// CanBeInitialized checks if the feature can be initialized.
 func (c *Client) CanBeInitialized(options *plugin.CanBeInitializedOptions) bool {
-	_, ok := options.Definitions.ServiceTypes()[definition.ServiceType_HTTPSpec]
+	_, ok := options.Definitions.ServiceTypes()[definition.ServiceTypeHTTPSpec]
 	return ok
 }
 
+// Initialize initializes the feature.
 func (c *Client) Initialize(_ context.Context, _ *plugin.InitializeOptions) error {
 	return nil
 }
 
+// AddResponseHeader adds a custom response header by setting a handler-specific
+// attribute in the request context.
 func (c *Client) AddResponseHeader(ctx context.Context, key, value string) {
 	if !c.IsEnabled() {
 		return
@@ -40,6 +46,8 @@ func (c *Client) AddResponseHeader(ctx context.Context, key, value string) {
 	}
 }
 
+// SetResponseCode sets a custom HTTP response code in the request context if
+// the feature is enabled.
 func (c *Client) SetResponseCode(ctx context.Context, code int) {
 	if !c.IsEnabled() {
 		return
@@ -50,6 +58,7 @@ func (c *Client) SetResponseCode(ctx context.Context, code int) {
 	}
 }
 
+// Fields returns feature fields to be logged.
 func (c *Client) Fields() []logger_api.Attribute {
 	return []logger_api.Attribute{}
 }

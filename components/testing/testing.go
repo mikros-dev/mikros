@@ -17,12 +17,15 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
+// Supported content types.
 const (
 	JSONContentType           = "application/json"
 	FormUrlencodedContentType = "application/x-www-form-urlencoded"
 	FormDataContentType       = "multipart/form-data"
 )
 
+// RequestOptions defines the configurable parameters for making an HTTP
+// request, including path, headers, body, and query params.
 type RequestOptions struct {
 	Path        string
 	Headers     map[string]string
@@ -40,19 +43,24 @@ func (r *RequestOptions) getContentType() string {
 	return ct
 }
 
+// Response represents an HTTP response with a status code and body payload.
 type Response struct {
 	statusCode int
 	body       []byte
 }
 
+// StatusCode returns the HTTP status code of the Response.
 func (r *Response) StatusCode() int {
 	return r.statusCode
 }
 
+// Body returns the body payload of the HTTP response as a slice of bytes.
 func (r *Response) Body() []byte {
 	return r.body
 }
 
+// Testing is a helper type for building service unit tests with access to
+// assertions and mock control features.
 type Testing struct {
 	options     *Options
 	t           *testing.T
@@ -120,6 +128,7 @@ func (t *Testing) MockController() *gomock.Controller {
 	return t.ctrl
 }
 
+// MockAny returns a gomock.Matcher that matches any value.
 func (t *Testing) MockAny() gomock.Matcher {
 	return gomock.Any()
 }
@@ -136,8 +145,8 @@ func (t *Testing) Options() *Options {
 	return t.options
 }
 
-// HttpHandler gives access to the service HTTP request handler.
-func (t *Testing) HttpHandler() fasthttp.RequestHandler {
+// HTTPHandler gives access to the service HTTP request handler.
+func (t *Testing) HTTPHandler() fasthttp.RequestHandler {
 	return t.httpHandler
 }
 
@@ -173,7 +182,7 @@ func (t *Testing) makeRequest(opts *RequestOptions, method string) (*Response, e
 	}
 
 	res := fasthttp.AcquireResponse()
-	err = makeHttpRequest(t, req, res)
+	err = makeHTTPRequest(t, req, res)
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +231,7 @@ func createRequest(opts *RequestOptions, method string) (*fasthttp.Request, erro
 	return req, nil
 }
 
-func makeHttpRequest(t *Testing, req *fasthttp.Request, res *fasthttp.Response) error {
+func makeHTTPRequest(t *Testing, req *fasthttp.Request, res *fasthttp.Response) error {
 	if err := httpTestingIsEnabled(t); err != nil {
 		return err
 	}
@@ -233,7 +242,7 @@ func makeHttpRequest(t *Testing, req *fasthttp.Request, res *fasthttp.Response) 
 	}(ln)
 
 	go func() {
-		if err := fasthttp.Serve(ln, t.HttpHandler()); err != nil {
+		if err := fasthttp.Serve(ln, t.HTTPHandler()); err != nil {
 			panic(fmt.Errorf("failed to serve: %v", err))
 		}
 	}()
@@ -248,7 +257,7 @@ func makeHttpRequest(t *Testing, req *fasthttp.Request, res *fasthttp.Response) 
 }
 
 func httpTestingIsEnabled(t *Testing) error {
-	if t.HttpHandler() == nil {
+	if t.HTTPHandler() == nil {
 		return errors.New("http testing is not enabled")
 	}
 

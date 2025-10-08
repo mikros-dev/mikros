@@ -76,49 +76,68 @@ func mustGetEnv(name string) (string, error) {
 	return value, nil
 }
 
+// DefinedEnv retrieves the value of a specific environment variable by name
+// from the defined envs in the service.toml file.
 func (s *ServiceEnvs) DefinedEnv(name string) (string, bool) {
 	v, ok := s.definedEnvs[name]
 	return v, ok
 }
 
+// DeploymentEnv retrieves the deployment environment of the service.
 func (s *ServiceEnvs) DeploymentEnv() definition.ServiceDeploy {
 	return s.envs.DeploymentEnv
 }
 
+// TrackerHeaderName retrieves the tracker header name from the environment
+// configuration.
 func (s *ServiceEnvs) TrackerHeaderName() string {
 	return s.envs.TrackerHeaderName
 }
 
+// IsCICD checks if the current environment is running in a CI/CD pipeline
+// based on the environment configuration.
 func (s *ServiceEnvs) IsCICD() bool {
 	return s.envs.IsCICD
 }
 
+// CoupledNamespace retrieves the namespace configuration for coupled services
+// from the environment.
 func (s *ServiceEnvs) CoupledNamespace() string {
 	return s.envs.CoupledNamespace
 }
 
+// CoupledPort retrieves the port configuration for coupled services from the
+// environment variables.
 func (s *ServiceEnvs) CoupledPort() int32 {
 	return s.envs.CoupledPort
 }
 
+// GrpcPort retrieves the gRPC port configuration defined in the environment
+// variables.
 func (s *ServiceEnvs) GrpcPort() int32 {
 	return s.envs.GrpcPort
 }
 
-func (s *ServiceEnvs) HttpPort() int32 {
-	return s.envs.HttpPort
+// HTTPPort retrieves the HTTP port configuration value from the environment
+// variables.
+func (s *ServiceEnvs) HTTPPort() int32 {
+	return s.envs.HTTPPort
 }
 
+// Get retrieves the value of a specified key from the defined environment
+// variables.
 func (s *ServiceEnvs) Get(key string) string {
 	key = strings.TrimSuffix(key, stringEnvNotation)
 	return s.definedEnvs[key]
 }
 
+// GetInt retrieves the integer value of the specified environment variable.
 func (s *ServiceEnvs) GetInt(name string) (int, error) {
 	i, err := strconv.Atoi(s.Get(name))
 	return i, err
 }
 
+// GetBool retrieves the boolean value of the specified environment variable.
 func (s *ServiceEnvs) GetBool(name string) (bool, error) {
 	b, err := strconv.ParseBool(s.Get(name))
 	return b, err

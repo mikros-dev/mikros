@@ -11,7 +11,7 @@ func main() {
 	srv := &service{}
 	svc := mikros.NewService(&options.NewServiceOptions{
 		Service: map[string]options.ServiceOptions{
-			"http": &options.HttpServiceOptions{
+			"http": &options.HTTPServiceOptions{
 				BasePath: "/example/v1",
 				Middlewares: []func(http.Handler) http.Handler{
 					srv.loggingMiddleware,
