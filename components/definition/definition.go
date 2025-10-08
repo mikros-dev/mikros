@@ -88,6 +88,8 @@ type Tests struct {
 	DiscardLogMessages *bool `toml:"discard_log_messages"`
 }
 
+//revive:enable:line-length-limit
+
 // New creates a new Definitions structure initializing the service
 // features with default values.
 func New() (*Definitions, error) {
