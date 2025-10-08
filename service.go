@@ -122,11 +122,12 @@ func initLogger(defs *definition.Definitions, envs *env.ServiceEnvs) (*mlogger.L
 		discardMessages = *defs.Tests.DiscardLogMessages
 	}
 
+	deploy := envs.DeploymentEnv()
 	attributes := map[string]string{
 		"service.name":    defs.ServiceName().String(),
 		"service.type":    defs.ServiceTypesAsString(),
 		"service.version": defs.Version,
-		"service.env":     envs.DeploymentEnv().String(),
+		"service.env":     deploy.String(),
 		"service.product": defs.Product,
 	}
 	for k, v := range defs.Log.Attributes {

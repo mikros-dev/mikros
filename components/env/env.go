@@ -295,7 +295,7 @@ func coerceValue(sf reflect.StructField, value, key string) (reflect.Value, erro
 		return reflect.ValueOf(d), nil
 	}
 
-	// Check if field implements UnmarshalText
+	// Check if the field implements UnmarshalText
 	if implementsTextUnmarshaler(t) {
 		return unmarshalTextValue(t, value)
 	}

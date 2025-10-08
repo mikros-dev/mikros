@@ -16,7 +16,7 @@ func HasEnvNotation(s string) bool {
 }
 
 // GetEnv is a helper function that retrieves a value from an environment
-// variable independently if is has the env notation or not.
+// variable independently if it has the env notation or not.
 func GetEnv(s string) string {
 	return os.Getenv(strings.TrimSuffix(s, stringEnvNotation))
 }

@@ -62,7 +62,7 @@ type Features struct {
 	externalFeatures map[string]ExternalFeatureEntry
 }
 
-// ExternalFeatureEntry is a behavior that all external feature must have to be
+// ExternalFeatureEntry is a behavior that all external features must have to be
 // supported by the package Definitions object.
 type ExternalFeatureEntry interface {
 	// Enabled must return true or false if the feature is enabled or not.
@@ -72,7 +72,7 @@ type ExternalFeatureEntry interface {
 	Validate() error
 }
 
-// ExternalServiceEntry is a behavior that all external services implementation
+// ExternalServiceEntry is a behavior that all external services implementations
 // must have to be supported by the Definitions object.
 type ExternalServiceEntry interface {
 	// Name must return the service name that the definitions will support.

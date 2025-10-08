@@ -45,8 +45,8 @@ const (
 	ServiceDeployLocal
 )
 
-func (e ServiceDeploy) String() string {
-	switch e {
+func (e *ServiceDeploy) String() string {
+	switch *e {
 	case ServiceDeployProduction:
 		return "prod"
 	case ServiceDeployTest:
@@ -62,7 +62,7 @@ func (e ServiceDeploy) String() string {
 
 // FromString converts a string input to its corresponding ServiceDeploy
 // enumeration value.
-func (e ServiceDeploy) FromString(in string) ServiceDeploy {
+func (e *ServiceDeploy) FromString(in string) ServiceDeploy {
 	switch in {
 	case "prod":
 		return ServiceDeployProduction

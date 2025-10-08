@@ -83,7 +83,7 @@ func (s *Server) Initialize(ctx context.Context, opt *plugin.ServiceOptions) err
 		h = http.StripPrefix(defs.BasePath, h)
 	}
 
-	// Add user supplied middlewares after core ones.
+	// Add user-supplied middlewares after core ones.
 	core, err := buildCoreMiddlewares(ctx, opt, defs)
 	if err != nil {
 		return err
@@ -113,8 +113,8 @@ func (s *Server) Initialize(ctx context.Context, opt *plugin.ServiceOptions) err
 func buildCoreMiddlewares(ctx context.Context, opt *plugin.ServiceOptions, defs *Definitions) ([]middleware, error) {
 	var chain []middleware
 
-	if cors := getCors(opt); cors != nil {
-		err := validateCORS(cors)
+	if c := getCors(opt); c != nil {
+		err := validateCORS(c)
 		if err != nil {
 			if defs.CORSStrict {
 				return nil, fmt.Errorf("invalid cors options: %w", err)
@@ -123,7 +123,7 @@ func buildCoreMiddlewares(ctx context.Context, opt *plugin.ServiceOptions, defs 
 			opt.Logger.Warn(ctx, "invalid cors options: cors is disabled", logger.Error(err))
 		}
 		if err == nil {
-			chain = append(chain, corsMiddleware(cors))
+			chain = append(chain, corsMiddleware(c))
 		}
 	}
 
@@ -270,22 +270,22 @@ func getAuth(opt *plugin.ServiceOptions) behavior.HTTPAuthenticator {
 }
 
 func getCors(opt *plugin.ServiceOptions) behavior.CorsHandler {
-	c, err := opt.Features.Feature(options.HTTPCorsFeatureName)
+	f, err := opt.Features.Feature(options.HTTPCorsFeatureName)
 	if err != nil {
 		return nil
 	}
 
-	api, ok := c.(plugin.FeatureInternalAPI)
+	api, ok := f.(plugin.FeatureInternalAPI)
 	if !ok {
 		return nil
 	}
 
-	cors, ok := api.FrameworkAPI().(behavior.CorsHandler)
+	c, ok := api.FrameworkAPI().(behavior.CorsHandler)
 	if !ok {
 		return nil
 	}
 
-	return cors
+	return c
 }
 
 // Run runs the service.

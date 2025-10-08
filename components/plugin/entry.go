@@ -10,7 +10,7 @@ import (
 	"github.com/mikros-dev/mikros/components/logger"
 )
 
-// Entry is a member that all framework feature must have declared inside
+// Entry is a member that all framework features must have declared inside
 // it (as a struct member). It implements the FeatureEntry interface for the
 // feature if used.
 //

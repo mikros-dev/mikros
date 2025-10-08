@@ -37,7 +37,7 @@ func serviceTypeValidator(ctx context.Context, fl validator.FieldLevel) bool {
 	if strings.Contains(serviceType, ":") {
 		parts := strings.Split(serviceType, ":")
 		if len(parts) > 1 {
-			// The server port was defined and, we must validate it.
+			// The server port was defined and we must validate it.
 			if !validatePort(parts[1]) {
 				return false
 			}

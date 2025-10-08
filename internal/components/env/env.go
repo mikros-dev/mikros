@@ -8,7 +8,7 @@ import (
 )
 
 // GlobalEnvs is the main framework structure that holds environment variables. Main
-// variables are declared as structure member and are loaded directly, using
+// variables are declared as structure members and are loaded directly, using
 // struct tags.
 type GlobalEnvs struct {
 	DeploymentEnv     definition.ServiceDeploy `env:"MIKROS_SERVICE_DEPLOY,default_value=local"`

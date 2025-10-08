@@ -34,7 +34,7 @@ func NewServiceEnvs(defs *definition.Definitions) (*ServiceEnvs, error) {
 
 	envs.postLoad()
 
-	// Load service defined environment variables (through service.toml 'envs' key)
+	// Load service-defined environment variables (through service.toml 'envs' key)
 	definedEnvs, err := loadDefinedEnvVars(defs)
 	if err != nil {
 		return nil, err

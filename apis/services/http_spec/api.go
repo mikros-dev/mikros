@@ -1,6 +1,8 @@
 //revive:disable:var-naming
 package http_spec
 
+//revive:enable:var-naming
+
 import (
 	"context"
 

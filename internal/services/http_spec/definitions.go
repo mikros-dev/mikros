@@ -18,6 +18,8 @@ type Definitions struct {
 	MaxRequestBodySize   int  `toml:"max_request_body_size,omitempty" default:"4" json:"max_request_body_size"` // in megabytes
 }
 
+//revive:enable:line-length-limit
+
 func newDefinitions(definitions *definition.Definitions) *Definitions {
 	if currentDefs, ok := definitions.LoadService(definition.ServiceTypeHTTPSpec); ok {
 		if b, err := json.Marshal(currentDefs); err == nil {

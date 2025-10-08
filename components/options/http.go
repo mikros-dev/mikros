@@ -18,7 +18,7 @@ type HTTPServiceOptions struct {
 	// BasePath is a common URL prefix under which all routes of this service
 	// are mounted. For example, if BasePath = "/api", a handler registered at
 	// "/items" will be served at "/api/items". An empty string mounts the
-	// service at root.
+	// service at the root path.
 	BasePath string
 
 	// ReadTimeout is the maximum duration allowed for reading the entire

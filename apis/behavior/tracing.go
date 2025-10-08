@@ -29,14 +29,15 @@ import (
 //	    return nil
 //	}
 type Tracer interface {
-	// StartMeasurements initializes tracing or metric collection using the given context.
-	// It is called at the beginning of a request or task execution, and may extract and record
-	// service-specific metadata. The returned value will be passed unchanged to ComputeMetrics.
+	// StartMeasurements initializes the tracing or metric collection using the
+	// given context. It is called at the beginning of a request or task execution
+	// and may extract and record service-specific metadata. The returned value
+	// will be passed unchanged to ComputeMetrics.
 	StartMeasurements(ctx context.Context, serviceName string) (interface{}, error)
 
-	// ComputeMetrics finalizes the metric computation using the updated context and the
-	// data returned by StartMeasurements. This method is typically called at the end of
-	// a request or execution and is responsible for emitting traces, recording durations,
-	// or reporting collected metrics.
+	// ComputeMetrics finalizes the metric computation using the updated context
+	// and the data returned by StartMeasurements. This method is typically called
+	// at the end of a request or execution and is responsible for emitting traces,
+	// recording durations, or reporting collected metrics.
 	ComputeMetrics(ctx context.Context, serviceName string, data interface{}) error
 }

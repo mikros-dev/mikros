@@ -112,7 +112,7 @@ type SuccessOptions struct {
 // handles JSON encoding of the response data, sets appropriate content types
 // and headers, and manages different scenarios for nil vs. non-nil data.
 //
-// When data is nil, it returns a 204 No Content response with no body.
+// When data is nil, it returns a 204 No Content response with an empty body.
 // When data is provided, it JSON-encodes the data and returns it with a
 // 200 OK status.
 func Success(ctx context.Context, w http.ResponseWriter, data interface{}, options ...SuccessOptions) {

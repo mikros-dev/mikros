@@ -75,7 +75,7 @@ func AppendValue(ctx context.Context, key, value string) context.Context {
 
 // FromContext retrieves a ServiceContext from the current context.
 func FromContext(ctx context.Context) (*ServiceContext, bool) {
-	// Notice that we are reading the IncomingContext here, because we want to
+	// Notice that we are reading the IncomingContext here because we want to
 	// retrieve the ServiceContext that someone is sending to us.
 	if md, ok := metadata.FromIncomingContext(ctx); ok {
 		svcCtx := newServiceContext()

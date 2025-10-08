@@ -85,7 +85,7 @@ type Options struct {
 	FeatureOptions map[string]interface{}
 }
 
-// New creates a new Testing object, to help building service unit tests. It can
+// New creates a new Testing object to help building service unit tests. It can
 // be used inside a Test function or test subset providing access to assertions
 // and APIs to build specific required types when calling services handlers.
 func New(t *testing.T, options ...*Options) *Testing {

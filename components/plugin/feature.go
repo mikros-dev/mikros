@@ -48,7 +48,7 @@ type FeatureEntry interface {
 }
 
 // UpdateInfoEntry is a structure used to update internal FeatureEntry types
-// according its initialized members.
+// according to its initialized members.
 type UpdateInfoEntry struct {
 	Enabled bool
 	Name    string

@@ -40,7 +40,7 @@ func OnFinish(ctx context.Context, s interface{}, opt *Options) {
 }
 
 func shouldExecute(opt *Options) bool {
-	// Do not execute lifecycle events by default in tests to force them mock
+	// Do not execute lifecycle events by default in tests to force them to mock
 	// features that are being initialized by the service.
 	if opt.Env == definition.ServiceDeployTest {
 		return opt.ExecuteOnTests

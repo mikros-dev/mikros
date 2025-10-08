@@ -21,7 +21,7 @@ func (g *GrpcServiceOptions) Kind() definition.ServiceType {
 }
 
 // GrpcClient is a structure to set information about a gRPC client that will
-// be coupled by a service.
+// be coupled with a service.
 type GrpcClient struct {
 	// ServiceName should be the service name.
 	ServiceName service.Name
