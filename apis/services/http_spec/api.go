@@ -1,4 +1,7 @@
+//revive:disable:var-naming
 package http_spec
+
+//revive:enable:var-naming
 
 import (
 	"context"
@@ -6,9 +9,9 @@ import (
 	"github.com/fasthttp/router"
 )
 
-// HttpSpecServerAPI is the behavior that a service must implement to be accepted as
-// a valid framework HTTP service.
-type HttpSpecServerAPI interface {
+// API is the behavior that a service must implement to be accepted as a valid
+// framework HTTP service.
+type API interface {
 	// SetupServer is the place where a service can adjust and initialize
 	// everything it requires to successfully initialize the HTTP server later.
 	SetupServer(

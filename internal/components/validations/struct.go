@@ -17,8 +17,8 @@ import (
 )
 
 // EnsureValuesAreInitialized certifies that all members of a struct v have
-// some valid value. It requires a struct object to be passed as argument, and
-// it considers a pointer member with nil value as uninitialized.
+// some valid value. It requires a struct object to be passed as an argument,
+// and it considers a pointer member with nil value as uninitialized.
 func EnsureValuesAreInitialized(v interface{}) error {
 	if v == nil {
 		return errors.New("can't validate nil object")

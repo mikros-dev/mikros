@@ -128,7 +128,7 @@ func TestSuccess(t *testing.T) {
 	t.Run("with custom Output", func(t *testing.T) {
 		var (
 			rec    = httptest.NewRecorder()
-			data   = map[string]string{"message": "success"}
+			data   = map[string]string{"message": "writeSuccess"}
 			called = false
 			opts   = SuccessOptions{
 				HTTPStatusCode: http.StatusCreated,

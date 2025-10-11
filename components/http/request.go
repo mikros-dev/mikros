@@ -38,88 +38,134 @@ import (
 //	var params RequestParams
 //	err := Bind(r, &params)
 func Bind(r *http.Request, target interface{}) error {
-	var (
-		v = reflect.ValueOf(target)
-	)
+	o := getBindOptions()
 
-	if v.Kind() != reflect.Ptr || v.Elem().Kind() != reflect.Struct {
-		return errors.New("target must be a pointer to a struct")
+	b, err := newBinder(r, target, &o)
+	if err != nil {
+		return err
 	}
 
-	var (
-		rv         = v.Elem()
-		rt         = rv.Type()
-		o          = getBindOptions()
-		bodyTarget interface{}
-	)
-
-	extractor := func(location, name string) string {
-		switch strings.ToLower(location) {
-		case "path":
-			return r.PathValue(name)
-		case "query":
-			return r.URL.Query().Get(name)
-		case "header":
-			return r.Header.Get(name)
-		default:
-			return ""
-		}
-	}
-
-	for i := 0; i < rt.NumField(); i++ {
-		var (
-			f  = rt.Field(i)
-			fv = rv.Field(i)
-		)
-
-		if !fv.CanSet() {
-			continue
-		}
-
-		// Get member name from JSON tag
-		paramName, ok := resolveFieldName(f, o.FallbackSnakeCase)
-		if !ok {
-			continue
-		}
-
-		tag, err := parseBindTag(f.Tag)
-		if err != nil {
-			return err
-		}
-		if tag == nil {
-			continue
-		}
-		if tag.Location == "body" {
-			// Parse body only once
-			if bodyTarget == nil {
-				bodyTarget = reflect.New(rt).Interface()
-				if err := BindBody(r, bodyTarget); err != nil {
-					return err
-				}
-			}
-
-			// Then "parse" the member value from the body
-			bf := reflect.ValueOf(bodyTarget).Elem().Field(i)
-			if !isZeroValue(bf) {
-				if err := setFieldValues(fv, f, []string{fmt.Sprintf("%v", bf.Interface())}, &o); err != nil {
-					return err
-				}
-			}
-
-			continue
-		}
-
-		value := extractor(tag.Location, paramName)
-		if value == "" {
-			continue
-		}
-
-		if err := setFieldValues(fv, f, []string{value}, &o); err != nil {
+	for i := 0; i < b.rt.NumField(); i++ {
+		if err := b.bindField(i); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+type binder struct {
+	r          *http.Request
+	target     interface{}
+	rv         reflect.Value
+	rt         reflect.Type
+	opt        *BindOptions
+	bodyParsed interface{}
+}
+
+func newBinder(r *http.Request, target interface{}, opt *BindOptions) (*binder, error) {
+	rv, rt, err := validateBindTarget(target)
+	if err != nil {
+		return nil, err
+	}
+
+	return &binder{
+		r:      r,
+		target: target,
+		rv:     rv,
+		rt:     rt,
+		opt:    opt,
+	}, nil
+}
+
+func validateBindTarget(target interface{}) (reflect.Value, reflect.Type, error) {
+	v := reflect.ValueOf(target)
+	if v.Kind() != reflect.Ptr || v.Elem().Kind() != reflect.Struct {
+		return reflect.Value{}, nil, errors.New("target must be a pointer to a struct")
+	}
+
+	rv := v.Elem()
+	return rv, rv.Type(), nil
+}
+
+func (b *binder) bindField(index int) error {
+	sf := b.rt.Field(index)
+	fv := b.rv.Field(index)
+
+	if !fv.CanSet() {
+		return nil
+	}
+
+	name, ok := resolveFieldName(sf, b.opt.FallbackSnakeCase)
+	if !ok {
+		return nil
+	}
+
+	tag, err := parseBindTag(sf.Tag)
+	if err != nil || tag == nil {
+		return err
+	}
+
+	if tag.Location == "body" {
+		return b.bindFromBody(index, sf, fv)
+	}
+
+	return b.bindFromExtractor(name, tag.Location, sf, fv)
+}
+
+func (b *binder) bindFromBody(index int, sf reflect.StructField, fv reflect.Value) error {
+	if err := b.ensureBodyParsed(); err != nil {
+		return err
+	}
+
+	bf := reflect.ValueOf(b.bodyParsed).Elem().Field(index)
+	if isZeroValue(bf) {
+		return nil
+	}
+
+	return setFieldValues(fv, sf, []string{
+		fmt.Sprintf("%v", bf.Interface()),
+	}, b.opt)
+}
+
+func (b *binder) ensureBodyParsed() error {
+	if b.bodyParsed != nil {
+		return nil
+	}
+
+	bt := reflect.New(b.rt).Interface()
+	if err := BindBody(b.r, bt); err != nil {
+		return err
+	}
+	b.bodyParsed = bt
+
+	return nil
+}
+
+func (b *binder) bindFromExtractor(
+	name, location string,
+	sf reflect.StructField,
+	fv reflect.Value,
+) error {
+	val := extractor(location, name, b.r)
+	if val == "" {
+		return nil
+	}
+
+	return setFieldValues(fv, sf, []string{val}, b.opt)
+}
+
+func extractor(location, name string, r *http.Request) string {
+	switch strings.ToLower(location) {
+	case "path":
+		return r.PathValue(name)
+	case "query":
+		return r.URL.Query().Get(name)
+	case "header":
+		return r.Header.Get(name)
+	default:
+		return ""
+	}
 }
 
 func isZeroValue(v reflect.Value) bool {
@@ -420,35 +466,47 @@ func setScalarValue(field reflect.Value, sf reflect.StructField, value string, o
 
 	// time.Duration
 	if field.Type() == durationType {
-		d, err := time.ParseDuration(value)
-		if err != nil {
-			return err
-		}
-
-		field.SetInt(int64(d))
-		return nil
+		return setScalarDurationField(field, value)
 	}
 
 	// time.Time
 	if field.Type() == timeType {
-		tag, err := parseBindTag(sf.Tag)
-		if err != nil {
-			return err
-		}
-		layout := opt.DefaultTimeLayout
-		if tag != nil && tag.TimeFormat != "" {
-			layout = tag.TimeFormat
-		}
-
-		t, err := time.Parse(layout, value)
-		if err != nil {
-			return err
-		}
-
-		field.Set(reflect.ValueOf(t))
-		return nil
+		return setScalarTimeField(field, sf, value, opt)
 	}
 
+	return setScalarField(field, value)
+}
+
+func setScalarDurationField(field reflect.Value, value string) error {
+	d, err := time.ParseDuration(value)
+	if err != nil {
+		return err
+	}
+
+	field.SetInt(int64(d))
+	return nil
+}
+
+func setScalarTimeField(field reflect.Value, sf reflect.StructField, value string, opt *BindOptions) error {
+	tag, err := parseBindTag(sf.Tag)
+	if err != nil {
+		return err
+	}
+	layout := opt.DefaultTimeLayout
+	if tag != nil && tag.TimeFormat != "" {
+		layout = tag.TimeFormat
+	}
+
+	t, err := time.Parse(layout, value)
+	if err != nil {
+		return err
+	}
+
+	field.Set(reflect.ValueOf(t))
+	return nil
+}
+
+func setScalarField(field reflect.Value, value string) error {
 	switch field.Kind() {
 	case reflect.String:
 		field.SetString(value)

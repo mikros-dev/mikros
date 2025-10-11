@@ -7,7 +7,7 @@ import (
 )
 
 type service struct {
-	Logger logger_api.LoggerAPI `mikros:"feature"`
+	Logger logger_api.API `mikros:"feature"`
 }
 
 func (s *service) Run(ctx context.Context) error {

@@ -4,13 +4,13 @@ import (
 	"github.com/mikros-dev/mikros/components/definition"
 )
 
-// EnvAPI provides access to environment-related settings for the running
+// API provides access to environment-related settings for the running
 // service.
 //
 // This interface is implemented by the mikros framework and is available to
 // services that opt into the feature. It offers access to environment variables
 // and deployment configuration values commonly required at runtime.
-type EnvAPI interface {
+type API interface {
 	// Get retrieves the value of an environment variable as a string.
 	Get(name string) string
 
@@ -41,6 +41,6 @@ type EnvAPI interface {
 	// GrpcPort returns the port number to be used for gRPC services.
 	GrpcPort() int32
 
-	// HttpPort returns the port number to be used for HTTP services.
-	HttpPort() int32
+	// HTTPPort returns the port number to be used for HTTP services.
+	HTTPPort() int32
 }

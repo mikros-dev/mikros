@@ -39,10 +39,12 @@ func Error(err error) Field {
 	}
 }
 
+// Key returns the key of the Field instance as a string.
 func (f Field) Key() string {
 	return f.key
 }
 
+// Value returns the underlying value associated with the Field instance.
 func (f Field) Value() interface{} {
 	return f.value
 }

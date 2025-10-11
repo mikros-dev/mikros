@@ -11,9 +11,9 @@ import (
 // NewServiceOptions gathers all the main options that one can use to create a new
 // service.
 type NewServiceOptions struct {
-	// Service must have all required service options according the types
-	// defined in the 'service.toml' file. The same type name should be
-	// used as a key here.
+	// Service must have all required service options according to the types
+	// defined in the 'service.toml' file. The same type name should be used
+	// as a key here.
 	Service map[string]ServiceOptions `validate:"required"`
 
 	// RunTimeFeatures must hold everything that will only be available
@@ -26,7 +26,7 @@ type NewServiceOptions struct {
 	GrpcClients map[string]*GrpcClient
 }
 
-// ServiceOptions is an interface that all services options structure must
+// ServiceOptions is an interface that all services options structures must
 // implement.
 type ServiceOptions interface {
 	Kind() definition.ServiceType

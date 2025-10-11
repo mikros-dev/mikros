@@ -10,7 +10,7 @@ func TestSupportedServiceTypes(t *testing.T) {
 	t.Run("should have all supported services", func(t *testing.T) {
 		types := SupportedServiceTypes()
 		a := assert.New(t)
-		a.Equal(4, len(types))
+		a.Equal(5, len(types))
 	})
 }
 

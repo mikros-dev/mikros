@@ -3,6 +3,7 @@ package errors
 // Kind is an error representation of a mapped error.
 type Kind string
 
+// Supported error kinds.
 var (
 	KindValidation   Kind = "ValidationError"
 	KindInternal     Kind = "InternalError"

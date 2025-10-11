@@ -4,6 +4,8 @@ import (
 	"github.com/stoewer/go-strcase"
 )
 
+// Name represents a service name used within the system, typically in a
+// string-based format.
 type Name string
 
 // String is a helper function to avoid casting the Name around.

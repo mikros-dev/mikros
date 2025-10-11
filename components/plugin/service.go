@@ -15,8 +15,7 @@ import (
 // Service is an internal package behavior that all supported service types must
 // have.
 type Service interface {
-	// Name must return the implementation name. It's recommended to use a
-	// kebab-case here.
+	// Name must return the implementation name.
 	Name() string
 
 	// Info should return some service informative fields to be logged while
@@ -57,7 +56,7 @@ type ServiceOptions struct {
 	Type           definition.ServiceType
 	Name           service.Name
 	Product        string
-	Logger         logger_api.LoggerAPI
+	Logger         logger_api.API
 	Errors         errors_api.ErrorAPI
 	ServiceContext *mcontext.ServiceContext
 	Tags           map[string]string
@@ -65,5 +64,5 @@ type ServiceOptions struct {
 	Definitions    *definition.Definitions
 	Features       *FeatureSet
 	ServiceHandler interface{}
-	Env            env_api.EnvAPI
+	Env            env_api.API
 }

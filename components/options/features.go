@@ -6,7 +6,7 @@ const (
 
 	// Internal features
 
-	HttpFeatureName       = FeatureNamePrefix + "http"
+	HTTPFeatureName       = FeatureNamePrefix + "http"
 	LoggerFeatureName     = FeatureNamePrefix + "logger"
 	ErrorsFeatureName     = FeatureNamePrefix + "errors"
 	DefinitionFeatureName = FeatureNamePrefix + "definition"
@@ -15,9 +15,9 @@ const (
 	// These HTTP features plugins don't exist here, but to be supported by
 	// internal services, they must have these names.
 
-	HttpCorsFeatureName        = FeatureNamePrefix + "http_cors"
-	HttpSpecAuthFeatureName    = FeatureNamePrefix + "http_spec_auth"
-	HttpAuthFeatureName        = FeatureNamePrefix + "http_auth"
+	HTTPCorsFeatureName        = FeatureNamePrefix + "http_cors"
+	HTTPSpecAuthFeatureName    = FeatureNamePrefix + "http_spec_auth"
+	HTTPAuthFeatureName        = FeatureNamePrefix + "http_auth"
 	TracingFeatureName         = FeatureNamePrefix + "tracing"
 	TrackerFeatureName         = FeatureNamePrefix + "tracker"
 	LoggerExtractorFeatureName = FeatureNamePrefix + "logger_extractor"

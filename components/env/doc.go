@@ -38,7 +38,7 @@
 // # Pointers are not supported
 //
 // Tagged pointer fields (e.g., *int, *MyType) are rejected to avoid nil vs.
-// zero-value ambiguity and implicit allocation. Use a value field, or wrap in
+// zero-value ambiguity and implicit allocation. Use a value field or wrap in
 // Env[T] if presence/source tracking is needed.
 //
 // Examples

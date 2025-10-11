@@ -18,7 +18,7 @@ type ServiceTesting struct {
 }
 
 func setupServiceTesting(ctx context.Context, svc *Service, t *testing.Testing) *ServiceTesting {
-	if svc.envs.DeploymentEnv() != definition.ServiceDeploy_Test {
+	if svc.envs.DeploymentEnv() != definition.ServiceDeployTest {
 		return &ServiceTesting{}
 	}
 

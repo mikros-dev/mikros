@@ -12,6 +12,7 @@ import (
 	"github.com/mikros-dev/mikros/components/options"
 )
 
+// Definitions represents configuration options for an HTTP server.
 type Definitions struct {
 	CORSStrict     bool          `toml:"cors_strict" json:"cors_strict" default:"true"`
 	DisableAuth    bool          `toml:"disable_auth,omitempty" json:"disable_auth" default:"false"`
@@ -22,7 +23,7 @@ type Definitions struct {
 	MaxHeaderBytes int           `toml:"max_header_bytes" json:"max_header_bytes" default:"1048576"`
 }
 
-func newDefinitions(definitions *definition.Definitions, opt *options.HttpServiceOptions) *Definitions {
+func newDefinitions(definitions *definition.Definitions, opt *options.HTTPServiceOptions) *Definitions {
 	out := &Definitions{}
 	_ = defaults.Set(out)
 
@@ -37,25 +38,29 @@ func newDefinitions(definitions *definition.Definitions, opt *options.HttpServic
 	}
 
 	// Apply file definitions
-	if currentDefs, ok := definitions.LoadService(definition.ServiceType_HTTP); ok {
-		if b, err := json.Marshal(currentDefs); err == nil {
-			var defs Definitions
-			if json.Unmarshal(b, &defs) == nil {
-				// File version of the following settings always wins
-				out.DisableAuth = defs.DisableAuth
-				out.CORSStrict = defs.CORSStrict
-
-				// Only use the file version if it's not empty'
-				if defs.BasePath != "" {
-					out.BasePath = normalizeBasePath(defs.BasePath)
-				}
-
-				mergeNonZero(out, &defs)
-			}
-		}
+	if currentDefs, ok := definitions.LoadService(definition.ServiceTypeHTTP); ok {
+		handleFileDefinitions(currentDefs, out)
 	}
 
 	return out
+}
+
+func handleFileDefinitions(currentDefs map[string]interface{}, out *Definitions) {
+	if b, err := json.Marshal(currentDefs); err == nil {
+		var defs Definitions
+		if json.Unmarshal(b, &defs) == nil {
+			// File version of the following settings always wins
+			out.DisableAuth = defs.DisableAuth
+			out.CORSStrict = defs.CORSStrict
+
+			// Only use the file version if it's not empty'
+			if defs.BasePath != "" {
+				out.BasePath = normalizeBasePath(defs.BasePath)
+			}
+
+			mergeNonZero(out, &defs)
+		}
+	}
 }
 
 // normalizeBasePath ensures a leading "/" and trims trailing "/".

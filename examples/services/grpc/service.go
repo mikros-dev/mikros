@@ -9,8 +9,8 @@ import (
 )
 
 type service struct {
-	Definitions *Definitions         `mikros:"definitions"`
-	Logger      logger_api.LoggerAPI `mikros:"feature"`
+	Definitions *Definitions   `mikros:"definitions"`
+	Logger      logger_api.API `mikros:"feature"`
 }
 
 type Definitions struct {

@@ -10,10 +10,11 @@ import (
 	"github.com/mikros-dev/mikros/internal/features/logger"
 )
 
+// Features returns the set of features that are available in mikros.
 func Features() *plugin.FeatureSet {
 	features := plugin.NewFeatureSet()
 
-	features.Register(options.HttpFeatureName, http.New())
+	features.Register(options.HTTPFeatureName, http.New())
 	features.Register(options.LoggerFeatureName, logger.New())
 	features.Register(options.ErrorsFeatureName, errors.New())
 	features.Register(options.DefinitionFeatureName, definition.New())

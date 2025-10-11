@@ -7,8 +7,8 @@ import (
 	"github.com/mikros-dev/mikros/components/definition"
 )
 
-// HttpServiceOptions defines runtime options for an HTTP service.
-type HttpServiceOptions struct {
+// HTTPServiceOptions defines runtime options for an HTTP service.
+type HTTPServiceOptions struct {
 	// CORSStrict controls how invalid CORS configurations are handled if a
 	// CORS middleware implementation is supplied. When true, invalid CORS
 	// settings cause service initialization to fail. Otherwise, a warning
@@ -18,7 +18,7 @@ type HttpServiceOptions struct {
 	// BasePath is a common URL prefix under which all routes of this service
 	// are mounted. For example, if BasePath = "/api", a handler registered at
 	// "/items" will be served at "/api/items". An empty string mounts the
-	// service at root.
+	// service at the root path.
 	BasePath string
 
 	// ReadTimeout is the maximum duration allowed for reading the entire
@@ -45,6 +45,8 @@ type HttpServiceOptions struct {
 	Middlewares []func(handler http.Handler) http.Handler
 }
 
-func (h *HttpServiceOptions) Kind() definition.ServiceType {
-	return definition.ServiceType_HTTP
+// Kind returns the service type, which is always definition.ServiceTypeHTTP
+// for HTTPServiceOptions.
+func (h *HTTPServiceOptions) Kind() definition.ServiceType {
+	return definition.ServiceTypeHTTP
 }

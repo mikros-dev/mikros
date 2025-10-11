@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/lab259/cors"
 	"github.com/mikros-dev/mikros/apis/behavior"
 	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
 	http_api "github.com/mikros-dev/mikros/apis/services/http"
@@ -21,6 +22,7 @@ import (
 
 type middleware = func(http.Handler) http.Handler
 
+// Server represents the HTTP service server.
 type Server struct {
 	port     service.ServerPort
 	listener net.Listener
@@ -28,26 +30,30 @@ type Server struct {
 	defs     *Definitions
 }
 
+// New creates a new Server struct.
 func New() *Server {
 	return &Server{}
 }
 
+// Name gives the implementation service name.
 func (s *Server) Name() string {
-	return definition.ServiceType_HTTP.String()
+	return definition.ServiceTypeHTTP.String()
 }
 
+// Info returns service fields to be logged.
 func (s *Server) Info() []logger_api.Attribute {
 	return []logger_api.Attribute{
 		logger.String("service.address", fmt.Sprintf(":%v", s.port.Int32())),
-		logger.String("service.mode", definition.ServiceType_HTTP.String()),
+		logger.String("service.mode", definition.ServiceTypeHTTP.String()),
 		logger.String("service.http_auth", fmt.Sprintf("%t", !s.defs.DisableAuth)),
 	}
 }
 
+// Initialize initializes the service internals.
 func (s *Server) Initialize(ctx context.Context, opt *plugin.ServiceOptions) error {
-	provider, ok := opt.ServiceHandler.(http_api.HttpAPI)
+	provider, ok := opt.ServiceHandler.(http_api.API)
 	if !ok {
-		return errors.New("invalid service handler, it does not implement http_api.HttpAPI")
+		return errors.New("invalid service handler, it does not implement http_api.API")
 	}
 
 	baseHandler, err := provider.HTTPHandler(ctx)
@@ -60,7 +66,7 @@ func (s *Server) Initialize(ctx context.Context, opt *plugin.ServiceOptions) err
 		return fmt.Errorf("could not listen to service port: %w", err)
 	}
 
-	svcOptions, ok := opt.Service.(*options.HttpServiceOptions)
+	svcOptions, ok := opt.Service.(*options.HTTPServiceOptions)
 	if !ok {
 		return errors.New("unsupported ServiceOptions received on initialization")
 	}
@@ -77,7 +83,7 @@ func (s *Server) Initialize(ctx context.Context, opt *plugin.ServiceOptions) err
 		h = http.StripPrefix(defs.BasePath, h)
 	}
 
-	// Add user supplied middlewares after core ones.
+	// Add user-supplied middlewares after core ones.
 	core, err := buildCoreMiddlewares(ctx, opt, defs)
 	if err != nil {
 		return err
@@ -107,8 +113,8 @@ func (s *Server) Initialize(ctx context.Context, opt *plugin.ServiceOptions) err
 func buildCoreMiddlewares(ctx context.Context, opt *plugin.ServiceOptions, defs *Definitions) ([]middleware, error) {
 	var chain []middleware
 
-	if cors := getCors(opt); cors != nil {
-		err := validateCORS(cors)
+	if c := getCors(opt); c != nil {
+		err := validateCORS(c)
 		if err != nil {
 			if defs.CORSStrict {
 				return nil, fmt.Errorf("invalid cors options: %w", err)
@@ -117,7 +123,7 @@ func buildCoreMiddlewares(ctx context.Context, opt *plugin.ServiceOptions, defs 
 			opt.Logger.Warn(ctx, "invalid cors options: cors is disabled", logger.Error(err))
 		}
 		if err == nil {
-			chain = append(chain, corsMiddleware(cors))
+			chain = append(chain, corsMiddleware(c))
 		}
 	}
 
@@ -132,86 +138,98 @@ func buildCoreMiddlewares(ctx context.Context, opt *plugin.ServiceOptions, defs 
 	return chain, nil
 }
 
+type corsConfig struct {
+	allowedOrigins map[string]struct{}
+	allowAll       bool
+	allowMethods   string
+	allowHeaders   string
+}
+
 func corsMiddleware(ch behavior.CorsHandler) func(http.Handler) http.Handler {
 	cfg := ch.Cors()
-
-	var (
-		allowedOrigins = make(map[string]struct{}, len(cfg.AllowedOrigins))
-		allowAll       = false
-		allowMethods   = strings.Join(cfg.AllowedMethods, ",")
-		allowHeaders   = strings.Join(cfg.AllowedHeaders, ",")
-	)
-
-	for _, o := range cfg.AllowedOrigins {
-		allowedOrigins[o] = struct{}{}
-	}
-
-	if _, ok := allowedOrigins["*"]; ok {
-		allowAll = true
-	}
+	c := buildConfig(cfg)
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			origin := r.Header.Get("Origin")
 			if origin == "" {
-				// Not a CORS request; pass through.
 				next.ServeHTTP(w, r)
 				return
 			}
 
 			w.Header().Add("Vary", "Origin")
+			setAllowOrigin(w, origin, c, cfg)
+			setCredentials(w, origin, cfg)
 
-			if allowAll && !cfg.AllowCredentials {
-				w.Header().Set("Access-Control-Allow-Origin", "*")
-			}
-			if !allowAll || cfg.AllowCredentials {
-				// Reflect only if the specific origin is allowed.
-				if _, ok := allowedOrigins[origin]; ok {
-					w.Header().Set("Access-Control-Allow-Origin", origin)
-				}
-			}
-
-			// The credentials' flag is only meaningful with a specific origin (not "*").
-			if cfg.AllowCredentials && w.Header().Get("Access-Control-Allow-Origin") == origin {
-				w.Header().Set("Access-Control-Allow-Credentials", "true")
-			}
-
-			// Is this a preflight request?
-			isPreflight := r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != ""
-			if !isPreflight {
+			if !isPreflight(r) {
 				next.ServeHTTP(w, r)
 				return
 			}
 
-			// Preflight: add appropriate Vary headers.
-			w.Header().Add("Vary", "Access-Control-Request-Method")
-			w.Header().Add("Vary", "Access-Control-Request-Headers")
-
-			if allowMethods != "" {
-				w.Header().Set("Access-Control-Allow-Methods", allowMethods)
-			}
-
-			if allowHeaders != "" {
-				w.Header().Set("Access-Control-Allow-Headers", allowHeaders)
-			}
-			if allowHeaders == "" {
-				// If not configured, echo back the request’s ask.
-				reqHeaders := r.Header.Get("Access-Control-Request-Headers")
-				if reqHeaders != "" {
-					w.Header().Set("Access-Control-Allow-Headers", reqHeaders)
-				}
-			}
-
-			// Set cache preflight result if configured.
-			if cfg.MaxAge > 0 {
-				w.Header().Set("Access-Control-Max-Age", fmt.Sprintf("%d", cfg.MaxAge))
-			}
-
-			// If the Origin wasn't allowed, we didn't set Allow-Origin. The
-			// browser will block, which is the correct signal for bad config.
-			w.WriteHeader(http.StatusNoContent)
+			handlePreflight(w, r, c, cfg)
 		})
 	}
+}
+
+func buildConfig(cfg cors.Options) corsConfig {
+	origins := make(map[string]struct{}, len(cfg.AllowedOrigins))
+	for _, o := range cfg.AllowedOrigins {
+		origins[o] = struct{}{}
+	}
+	_, allowAll := origins["*"]
+
+	return corsConfig{
+		allowedOrigins: origins,
+		allowAll:       allowAll,
+		allowMethods:   strings.Join(cfg.AllowedMethods, ","),
+		allowHeaders:   strings.Join(cfg.AllowedHeaders, ","),
+	}
+}
+
+func setAllowOrigin(w http.ResponseWriter, origin string, c corsConfig, cfg cors.Options) {
+	if c.allowAll && !cfg.AllowCredentials {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		return
+	}
+	if _, ok := c.allowedOrigins[origin]; ok {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+	}
+}
+
+func setCredentials(w http.ResponseWriter, origin string, cfg cors.Options) {
+	if cfg.AllowCredentials && w.Header().Get("Access-Control-Allow-Origin") == origin {
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+	}
+}
+
+func handlePreflight(w http.ResponseWriter, r *http.Request, c corsConfig, cfg cors.Options) {
+	w.Header().Add("Vary", "Access-Control-Request-Method")
+	w.Header().Add("Vary", "Access-Control-Request-Headers")
+
+	if c.allowMethods != "" {
+		w.Header().Set("Access-Control-Allow-Methods", c.allowMethods)
+	}
+
+	if c.allowHeaders != "" {
+		w.Header().Set("Access-Control-Allow-Headers", c.allowHeaders)
+	}
+
+	if c.allowHeaders == "" {
+		reqHeaders := r.Header.Get("Access-Control-Request-Headers")
+		if reqHeaders != "" {
+			w.Header().Set("Access-Control-Allow-Headers", reqHeaders)
+		}
+	}
+
+	if cfg.MaxAge > 0 {
+		w.Header().Set("Access-Control-Max-Age", fmt.Sprintf("%d", cfg.MaxAge))
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func isPreflight(r *http.Request) bool {
+	return r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != ""
 }
 
 func validateCORS(cors behavior.CorsHandler) error {
@@ -233,7 +251,7 @@ func validateCORS(cors behavior.CorsHandler) error {
 }
 
 func getAuth(opt *plugin.ServiceOptions) behavior.HTTPAuthenticator {
-	c, err := opt.Features.Feature(options.HttpAuthFeatureName)
+	c, err := opt.Features.Feature(options.HTTPAuthFeatureName)
 	if err != nil {
 		return nil
 	}
@@ -252,24 +270,25 @@ func getAuth(opt *plugin.ServiceOptions) behavior.HTTPAuthenticator {
 }
 
 func getCors(opt *plugin.ServiceOptions) behavior.CorsHandler {
-	c, err := opt.Features.Feature(options.HttpCorsFeatureName)
+	f, err := opt.Features.Feature(options.HTTPCorsFeatureName)
 	if err != nil {
 		return nil
 	}
 
-	api, ok := c.(plugin.FeatureInternalAPI)
+	api, ok := f.(plugin.FeatureInternalAPI)
 	if !ok {
 		return nil
 	}
 
-	cors, ok := api.FrameworkAPI().(behavior.CorsHandler)
+	c, ok := api.FrameworkAPI().(behavior.CorsHandler)
 	if !ok {
 		return nil
 	}
 
-	return cors
+	return c
 }
 
+// Run runs the service.
 func (s *Server) Run(_ context.Context, _ interface{}) error {
 	if err := s.server.Serve(s.listener); err != nil {
 		if errors.Is(err, http.ErrServerClosed) {
@@ -282,6 +301,7 @@ func (s *Server) Run(_ context.Context, _ interface{}) error {
 	return nil
 }
 
+// Stop stops the service.
 func (s *Server) Stop(ctx context.Context) error {
 	return s.server.Shutdown(ctx)
 }

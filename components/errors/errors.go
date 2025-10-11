@@ -69,6 +69,8 @@ func IsRPCError(err error) bool {
 	return false
 }
 
+// IsKnownError determines if the given error is a known framework error
+// and returns the error details if true.
 func IsKnownError(err error) (*merrors.Error, bool) {
 	var e *merrors.Error
 	ok := errors.As(err, &e)

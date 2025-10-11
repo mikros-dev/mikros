@@ -10,7 +10,7 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-func validateVersion(_ context.Context, fl validator.FieldLevel) bool {
+func versionValidator(_ context.Context, fl validator.FieldLevel) bool {
 	return ValidateVersion(fl.Field().String())
 }
 
@@ -20,32 +20,35 @@ func ValidateVersion(input string) bool {
 	return regexp.MustCompile("^v[0-9]{1,2}(|[.][0-9]{1,2})(|[.][0-9]{1,2})$").MatchString(input)
 }
 
-// validateServiceType validates if valid service type was used inside the
+// serviceTypeValidator validates if a valid service type was used inside the
 // settings file. It also supports the notation 'type:port', where one can
 // set a custom server port for the specific service type.
-func validateServiceType(ctx context.Context, fl validator.FieldLevel) bool {
-	if serviceType := fl.Field().String(); serviceType != "" {
-		supportedTypes, ok := ctx.Value(serviceTypeCtx{}).([]string)
-		if !ok {
-			return false
+func serviceTypeValidator(ctx context.Context, fl validator.FieldLevel) bool {
+	serviceType := fl.Field().String()
+	if serviceType == "" {
+		return true
+	}
+
+	supportedTypes, ok := ctx.Value(serviceTypeCtx{}).([]string)
+	if !ok {
+		return false
+	}
+
+	if strings.Contains(serviceType, ":") {
+		parts := strings.Split(serviceType, ":")
+		if len(parts) > 1 {
+			// The server port was defined and we must validate it.
+			if !validatePort(parts[1]) {
+				return false
+			}
 		}
 
-		if strings.Contains(serviceType, ":") {
-			parts := strings.Split(serviceType, ":")
-			if len(parts) > 1 {
-				// The server port was defined and, we must validate it.
-				if !validatePort(parts[1]) {
-					return false
-				}
-			}
+		serviceType = parts[0]
+	}
 
-			serviceType = parts[0]
-		}
-
-		for _, t := range supportedTypes {
-			if serviceType == t {
-				return true
-			}
+	for _, t := range supportedTypes {
+		if serviceType == t {
+			return true
 		}
 	}
 
@@ -57,11 +60,11 @@ func validatePort(port string) bool {
 	return err == nil
 }
 
-// ensureScriptTypeIsUnique validates if the 'script' service type is alone in
+// scriptTypeUniqueValidator validates if the 'script' service type is alone in
 // the list.
-func ensureScriptTypeIsUnique(_ context.Context, fl validator.FieldLevel) bool {
+func scriptTypeUniqueValidator(_ context.Context, fl validator.FieldLevel) bool {
 	if list, ok := fl.Field().Interface().([]string); ok {
-		index := slices.Index(list, ServiceType_Script.String())
+		index := slices.Index(list, ServiceTypeScript.String())
 		if index != -1 && len(list) > 1 {
 			return false
 		}
@@ -70,8 +73,8 @@ func ensureScriptTypeIsUnique(_ context.Context, fl validator.FieldLevel) bool {
 	return true
 }
 
-// checkDuplicatedServices validates if the list contains duplicated elements.
-func checkDuplicatedServices(_ context.Context, fl validator.FieldLevel) bool {
+// duplicatedServicesValidator validates if the list contains duplicated elements.
+func duplicatedServicesValidator(_ context.Context, fl validator.FieldLevel) bool {
 	if list, ok := fl.Field().Interface().([]string); ok {
 		types := make(map[string]bool)
 		for _, t := range list {

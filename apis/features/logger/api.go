@@ -4,12 +4,12 @@ import (
 	"context"
 )
 
-// LoggerAPI provides a structured logging interface with multiple log levels.
+// API provides a structured logging interface with multiple log levels.
 //
 // This interface is implemented by the mikros framework and is available to all
 // services by default. It allows emitting log messages with contextual metadata
-// using attributes, and supports runtime log level configuration.
-type LoggerAPI interface {
+// using attributes and supports runtime log level configuration.
+type API interface {
 	// Debug logs a message at the debug level with optional attributes.
 	Debug(ctx context.Context, msg string, attrs ...Attribute)
 

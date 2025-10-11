@@ -9,6 +9,7 @@ import (
 	"github.com/mikros-dev/mikros/internal/services/worker"
 )
 
+// Services returns a ServiceSet with all the services supported by mikros.
 func Services() *plugin.ServiceSet {
 	services := plugin.NewServiceSet()
 

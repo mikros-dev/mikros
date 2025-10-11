@@ -22,10 +22,13 @@ type ServiceContext struct {
 	values map[string]string
 }
 
+// Options encapsulates the required configuration for initializing a service
+// context.
 type Options struct {
 	Name service.Name `validate:"required"`
 }
 
+// New initializes a new ServiceContext.
 func New(options *Options) (*ServiceContext, error) {
 	validate := validator.New()
 	if err := validate.Struct(options); err != nil {
@@ -72,7 +75,7 @@ func AppendValue(ctx context.Context, key, value string) context.Context {
 
 // FromContext retrieves a ServiceContext from the current context.
 func FromContext(ctx context.Context) (*ServiceContext, bool) {
-	// Notice that we are reading the IncomingContext here, because we want to
+	// Notice that we are reading the IncomingContext here because we want to
 	// retrieve the ServiceContext that someone is sending to us.
 	if md, ok := metadata.FromIncomingContext(ctx); ok {
 		svcCtx := newServiceContext()
