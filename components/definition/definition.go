@@ -30,7 +30,7 @@ type Definitions struct {
 	Envs     []string                          `toml:"envs,omitempty" validate:"dive,ascii,uppercase"`
 	Features Features                          `toml:"features,omitempty"`
 	Log      Log                               `toml:"log,omitempty"`
-	Tests    Tests                             `toml:"tests"`
+	Tests    Tests                             `toml:"tests,omitempty"`
 	Service  map[string]interface{}            `toml:"service,omitempty"`
 	Clients  map[string]GrpcClient             `toml:"clients,omitempty"`
 	Services map[string]map[string]interface{} `toml:"services,omitempty"`
@@ -84,8 +84,8 @@ type ExternalServiceEntry interface {
 
 // Tests gathers unit tests related options.
 type Tests struct {
-	ExecuteLifecycle   bool  `toml:"execute_lifecycle"`
-	DiscardLogMessages *bool `toml:"discard_log_messages"`
+	ExecuteLifecycle   bool  `toml:"execute_lifecycle,omitempty"`
+	DiscardLogMessages *bool `toml:"discard_log_messages,omitempty"`
 }
 
 //revive:enable:line-length-limit
