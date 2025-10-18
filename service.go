@@ -86,35 +86,10 @@ func initService(opt *options.NewServiceOptions) (*Service, error) {
 		return nil, err
 	}
 
-	// By default, we always discard log messages when running unit tests,
-	// but this behavior can be changed using service definitions.
-	discardMessages := envs.DeploymentEnv() == definition.ServiceDeploy_Test
-	if discardMessages && defs.Tests.DiscardLogMessages != nil {
-		discardMessages = *defs.Tests.DiscardLogMessages
-	}
-
-	attributes := map[string]string{
-		"service.name":    defs.ServiceName().String(),
-		"service.type":    defs.ServiceTypesAsString(),
-		"service.version": defs.Version,
-		"service.env":     envs.DeploymentEnv().String(),
-		"service.product": defs.Product,
-	}
-	for k, v := range defs.Log.Attributes {
-		attributes[k] = v
-	}
-
 	// Initialize the service logger system.
-	serviceLogger := mlogger.New(mlogger.Options{
-		DiscardMessages: discardMessages,
-		ErrorStackTrace: defs.Log.ErrorStackTrace,
-		FixedAttributes: attributes,
-	})
-
-	if defs.Log.Level != "" {
-		if _, err := serviceLogger.SetLogLevel(defs.Log.Level); err != nil {
-			return nil, err
-		}
+	serviceLogger, err := initLogger(defs, envs)
+	if err != nil {
+		return nil, err
 	}
 
 	// Context initialization
@@ -139,7 +114,43 @@ func initService(opt *options.NewServiceOptions) (*Service, error) {
 	}, nil
 }
 
-func initServiceErrors(defs *definition.Definitions, log logger_api.LoggerAPI) *merrors.Factory {
+func initLogger(defs *definition.Definitions, envs *env.ServiceEnvs) (*mlogger.Logger, error) {
+	// By default, we always discard log messages when running unit tests,
+	// but this behavior can be changed using service definitions.
+	discardMessages := envs.DeploymentEnv() == definition.ServiceDeployTest
+	if discardMessages && defs.Tests.DiscardLogMessages != nil {
+		discardMessages = *defs.Tests.DiscardLogMessages
+	}
+
+	deploy := envs.DeploymentEnv()
+	attributes := map[string]string{
+		"service.name":    defs.ServiceName().String(),
+		"service.type":    defs.ServiceTypesAsString(),
+		"service.version": defs.Version,
+		"service.env":     deploy.String(),
+		"service.product": defs.Product,
+	}
+	for k, v := range defs.Log.Attributes {
+		attributes[k] = v
+	}
+
+	// Initialize the service logger system.
+	serviceLogger := mlogger.New(mlogger.Options{
+		DiscardMessages: discardMessages,
+		ErrorStackTrace: defs.Log.ErrorStackTrace,
+		FixedAttributes: attributes,
+	})
+
+	if defs.Log.Level != "" {
+		if _, err := serviceLogger.SetLogLevel(defs.Log.Level); err != nil {
+			return nil, err
+		}
+	}
+
+	return serviceLogger, nil
+}
+
+func initServiceErrors(defs *definition.Definitions, log logger_api.API) *merrors.Factory {
 	return merrors.NewFactory(merrors.FactoryOptions{
 		ServiceName: defs.ServiceName().String(),
 		Logger:      log,
@@ -172,20 +183,20 @@ func (s *Service) WithExternalFeatures(features *plugin.FeatureSet) *Service {
 func (s *Service) Start(srv interface{}) {
 	ctx := context.Background()
 
-	if err := s.start(ctx, srv); err != nil {
-		s.abort(ctx, err)
+	if err := s.bootstrap(ctx, srv); err != nil {
+		s.fatalAbort(ctx, err)
 	}
 
 	// If we're running tests, we end the method here to avoid putting the
 	// service in execution.
-	if s.envs.DeploymentEnv() == definition.ServiceDeploy_Test {
+	if s.envs.DeploymentEnv() == definition.ServiceDeployTest {
 		return
 	}
 
 	s.run(ctx, srv)
 }
 
-func (s *Service) start(ctx context.Context, srv interface{}) *merrors.AbortError {
+func (s *Service) bootstrap(ctx context.Context, srv interface{}) *merrors.AbortError {
 	s.logger.Info(ctx, "starting service")
 
 	if err := s.postProcessDefinitions(srv); err != nil {
@@ -285,11 +296,7 @@ func (s *Service) initializeFeatures(ctx context.Context, srv interface{}) error
 	}
 
 	// Load tagged features into the service struct
-	if err := s.loadTaggedFeatures(ctx, srv); err != nil {
-		return err
-	}
-
-	return nil
+	return s.loadTaggedFeatures(ctx, srv)
 }
 
 func (s *Service) loadTaggedFeatures(ctx context.Context, srv interface{}) error {
@@ -300,18 +307,17 @@ func (s *Service) loadTaggedFeatures(ctx context.Context, srv interface{}) error
 
 	for i := 0; i < typeOf.Elem().NumField(); i++ {
 		typeField := typeOf.Elem().Field(i)
-		if tag := tags.ParseTag(typeField.Tag); tag != nil {
-			if !tag.IsFeature {
-				continue
-			}
+		tag := tags.ParseTag(typeField.Tag)
+		if tag == nil || !tag.IsFeature {
+			continue
+		}
 
-			if valueOf.Elem().Field(i).CanSet() {
-				f := reflect.New(typeField.Type).Elem()
-				if err := s.Feature(ctx, f.Addr().Interface()); err != nil {
-					return err
-				}
-				valueOf.Elem().Field(i).Set(f)
+		if valueOf.Elem().Field(i).CanSet() {
+			f := reflect.New(typeField.Type).Elem()
+			if err := s.Feature(ctx, f.Addr().Interface()); err != nil {
+				return err
 			}
+			valueOf.Elem().Field(i).Set(f)
 		}
 	}
 
@@ -356,14 +362,14 @@ func (s *Service) initializeServiceInternals(ctx context.Context, srv interface{
 	// allow its fields to be initialized at this point. Also ensures that
 	// everything declared inside the main struct service is initialized to
 	// be used inside the callback.
-	if err := lifecycle.OnStart(ctx, srv, &lifecycle.LifecycleOptions{
+	if err := lifecycle.OnStart(ctx, srv, &lifecycle.Options{
 		Env:            s.envs.DeploymentEnv(),
 		ExecuteOnTests: s.definitions.Tests.ExecuteLifecycle,
 	}); err != nil {
 		return merrors.NewAbortError("failed while running lifecycle.OnStart", err)
 	}
 
-	if s.envs.DeploymentEnv() != definition.ServiceDeploy_Test {
+	if s.envs.DeploymentEnv() != definition.ServiceDeployTest {
 		if err := validations.EnsureValuesAreInitialized(srv); err != nil {
 			return merrors.NewAbortError("service server object is not properly initialized", err)
 		}
@@ -373,21 +379,6 @@ func (s *Service) initializeServiceInternals(ctx context.Context, srv interface{
 }
 
 func (s *Service) initializeRegisteredServices(ctx context.Context, srv interface{}) error {
-	getServicePort := func(port service.ServerPort, serviceType string) service.ServerPort {
-		// Use default port values in case no port was set in the service.toml
-		if port == 0 {
-			if serviceType == definition.ServiceType_gRPC.String() {
-				return service.ServerPort(s.envs.GrpcPort())
-			}
-
-			if serviceType == definition.ServiceType_HTTPSpec.String() || serviceType == definition.ServiceType_HTTP.String() {
-				return service.ServerPort(s.envs.HttpPort())
-			}
-		}
-
-		return port
-	}
-
 	// Creates the service
 	for serviceType, servicePort := range s.definitions.ServiceTypes() {
 		svc, ok := s.services.Services()[serviceType.String()]
@@ -401,7 +392,7 @@ func (s *Service) initializeRegisteredServices(ctx context.Context, srv interfac
 		}
 
 		if err := svc.Initialize(ctx, &plugin.ServiceOptions{
-			Port:           getServicePort(servicePort, serviceType.String()),
+			Port:           s.getServicePort(servicePort, serviceType.String()),
 			Type:           serviceType,
 			Name:           s.definitions.ServiceName(),
 			Product:        s.definitions.Product,
@@ -425,12 +416,28 @@ func (s *Service) initializeRegisteredServices(ctx context.Context, srv interfac
 	return nil
 }
 
+func (s *Service) getServicePort(port service.ServerPort, serviceType string) service.ServerPort {
+	// Use default port values in case no port was set in the service.toml
+	if port == 0 {
+		if serviceType == definition.ServiceTypeGRPC.String() {
+			return service.ServerPort(s.envs.GrpcPort())
+		}
+
+		if serviceType == definition.ServiceTypeHTTPSpec.String() ||
+			serviceType == definition.ServiceTypeHTTP.String() {
+			return service.ServerPort(s.envs.HTTPPort())
+		}
+	}
+
+	return port
+}
+
 // coupleClients establishes connections with all client services that a service
 // has as dependency.
 func (s *Service) coupleClients(srv interface{}) error {
 	// If the service does not have dependencies, or we are running tests,
 	// don't need to continue.
-	if len(s.clients) == 0 || s.envs.DeploymentEnv() == definition.ServiceDeploy_Test {
+	if len(s.clients) == 0 || s.envs.DeploymentEnv() == definition.ServiceDeployTest {
 		return nil
 	}
 
@@ -441,61 +448,64 @@ func (s *Service) coupleClients(srv interface{}) error {
 
 	for i := 0; i < typeOf.Elem().NumField(); i++ {
 		typeField := typeOf.Elem().Field(i)
-		if tag := tags.ParseTag(typeField.Tag); tag != nil {
-			isClient := !tag.IsOptional && !tag.IsFeature && tag.GrpcClientName != ""
-			if !isClient {
-				continue
-			}
-
-			client, ok := s.clients[tag.GrpcClientName]
-			if !ok {
-				return fmt.Errorf("could not find gRPC client '%s' inside service options", tag.GrpcClientName)
-			}
-			if err := client.Validate(); err != nil {
-				return err
-			}
-
-			serviceTracker, _ := s.tracker.Tracker()
-
-			// For each valid client, establishes their gRPC connection and
-			// initializes the service structure properly by pointing its
-			// members to these connections.
-
-			cOpts := &mgrpc.ClientConnectionOptions{
-				ServiceName: s.definitions.ServiceName(),
-				ClientName:  client.ServiceName,
-				Context:     s.ctx,
-				Connection: mgrpc.ConnectionOptions{
-					Namespace: s.envs.CoupledNamespace(),
-					Port:      s.envs.CoupledPort(),
-				},
-				Tracker: serviceTracker,
-			}
-
-			if s.definitions.Clients != nil {
-				if opt, ok := s.definitions.Clients[client.ServiceName.String()]; ok {
-					cOpts.AlternativeConnection = &mgrpc.ConnectionOptions{
-						Host: opt.Host,
-						Port: opt.Port,
-					}
-				}
-			}
-
-			conn, err := mgrpc.ClientConnection(cOpts)
-			if err != nil {
-				return err
-			}
-
-			call := reflect.ValueOf(client.NewClientFunction)
-			out := call.Call([]reflect.Value{reflect.ValueOf(conn)})
-
-			ptr := reflect.New(out[0].Type())
-			ptr.Elem().Set(out[0].Elem())
-			valueOf.Elem().Field(i).Set(ptr.Elem())
+		tag := tags.ParseTag(typeField.Tag)
+		if tag == nil || !tag.IsClientTag() {
+			continue
 		}
+
+		client, ok := s.clients[tag.GrpcClientName]
+		if !ok {
+			return fmt.Errorf("could not find gRPC client '%s' inside service options", tag.GrpcClientName)
+		}
+		if err := client.Validate(); err != nil {
+			return err
+		}
+
+		cOpts := s.createGrpcCoupledClientOptions(client)
+		conn, err := mgrpc.ClientConnection(cOpts)
+		if err != nil {
+			return err
+		}
+
+		call := reflect.ValueOf(client.NewClientFunction)
+		out := call.Call([]reflect.Value{reflect.ValueOf(conn)})
+
+		ptr := reflect.New(out[0].Type())
+		ptr.Elem().Set(out[0].Elem())
+		valueOf.Elem().Field(i).Set(ptr.Elem())
 	}
 
 	return nil
+}
+
+func (s *Service) createGrpcCoupledClientOptions(client *options.GrpcClient) *mgrpc.ClientConnectionOptions {
+	serviceTracker, _ := s.tracker.Tracker()
+
+	// For each valid client, establishes their gRPC connection and
+	// initializes the service structure properly by pointing its
+	// members to these connections.
+
+	opts := &mgrpc.ClientConnectionOptions{
+		ServiceName: s.definitions.ServiceName(),
+		ClientName:  client.ServiceName,
+		Context:     s.ctx,
+		Connection: mgrpc.ConnectionOptions{
+			Namespace: s.envs.CoupledNamespace(),
+			Port:      s.envs.CoupledPort(),
+		},
+		Tracker: serviceTracker,
+	}
+
+	if s.definitions.Clients != nil {
+		if opt, ok := s.definitions.Clients[client.ServiceName.String()]; ok {
+			opts.AlternativeConnection = &mgrpc.ConnectionOptions{
+				Host: opt.Host,
+				Port: opt.Port,
+			}
+		}
+	}
+
+	return opts
 }
 
 func (s *Service) printServiceResources(ctx context.Context) {
@@ -513,19 +523,19 @@ func (s *Service) printServiceResources(ctx context.Context) {
 
 func (s *Service) run(ctx context.Context, srv interface{}) {
 	defer s.stopService(ctx)
-	defer lifecycle.OnFinish(ctx, srv, &lifecycle.LifecycleOptions{
+	defer lifecycle.OnFinish(ctx, srv, &lifecycle.Options{
 		Env:            s.envs.DeploymentEnv(),
 		ExecuteOnTests: s.definitions.Tests.ExecuteLifecycle,
 	})
 
 	// In case we're a script service, only execute its function and terminate
 	// the execution.
-	if s.definitions.IsServiceType(definition.ServiceType_Script) {
+	if s.definitions.IsServiceType(definition.ServiceTypeScript) {
 		svc := s.servers[0]
 		s.logger.Info(ctx, "service is running", svc.Info()...)
 
 		if err := svc.Run(ctx, srv); err != nil {
-			s.abort(ctx, merrors.NewAbortError("could not execute service", err))
+			s.fatalAbort(ctx, merrors.NewAbortError("could not execute service", err))
 		}
 
 		return
@@ -551,7 +561,7 @@ func (s *Service) run(ctx context.Context, srv interface{}) {
 	// Blocks the call
 	select {
 	case err := <-errChan:
-		s.abort(ctx, merrors.NewAbortError("could not execute service", err))
+		s.fatalAbort(ctx, merrors.NewAbortError("could not execute service", err))
 
 	case <-stopChan:
 	}
@@ -578,12 +588,7 @@ func (s *Service) stopService(ctx context.Context) {
 // main service.
 func (s *Service) stopDependentServices(ctx context.Context) error {
 	s.logger.Info(ctx, "stopping dependent services")
-
-	if err := s.features.CleanupAll(ctx); err != nil {
-		return err
-	}
-
-	return nil
+	return s.features.CleanupAll(ctx)
 }
 
 // Logger gives access to the logger API from inside a service context.
@@ -591,7 +596,7 @@ func (s *Service) stopDependentServices(ctx context.Context) error {
 // Deprecated: This method is deprecated and should not be used anymore. To access
 // the log API, one must declare an internal service feature and initialize it
 // using struct tags.
-func (s *Service) Logger() logger_api.LoggerAPI {
+func (s *Service) Logger() logger_api.API {
 	return s.logger
 }
 
@@ -607,12 +612,12 @@ func (s *Service) Errors() errors_api.ErrorAPI {
 // Abort is a helper method to abort services in the right way when external
 // initialization is needed.
 func (s *Service) Abort(message string, err error) {
-	s.abort(context.TODO(), merrors.NewAbortError(message, err))
+	s.fatalAbort(context.TODO(), merrors.NewAbortError(message, err))
 }
 
 // abort is an internal helper method to finish the service execution with an
 // error message.
-func (s *Service) abort(ctx context.Context, err *merrors.AbortError) {
+func (s *Service) fatalAbort(ctx context.Context, err *merrors.AbortError) {
 	s.logger.Fatal(ctx, err.Message, logger.Error(err.InnerError))
 }
 
@@ -668,13 +673,13 @@ func (s *Service) Feature(ctx context.Context, target interface{}) error {
 		}
 
 		f := reflect.ValueOf(feature)
-		if externalApi, ok := feature.(plugin.FeatureExternalAPI); ok {
+		if externalAPI, ok := feature.(plugin.FeatureExternalAPI); ok {
 			// If the feature has implemented the plugin.FeatureExternalAPI,
 			// we give priority to it, trying to check if its returned
 			// interface{} has the desired target interface. This way, we let the
 			// feature decide if it is going to implement its public interface
 			// itself or if it will return something that implements.
-			f = reflect.ValueOf(externalApi.ServiceAPI())
+			f = reflect.ValueOf(externalAPI.ServiceAPI())
 		}
 
 		var (

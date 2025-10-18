@@ -1,4 +1,7 @@
+//revive:disable:var-naming
 package http_spec
+
+//revive:enable:var-naming
 
 import (
 	"context"
@@ -21,42 +24,49 @@ import (
 	"github.com/mikros-dev/mikros/components/service"
 )
 
+// Server represents the HTTP (spec) service server.
 type Server struct {
 	port              service.ServerPort
 	trackerHeaderName string
 	defs              *Definitions
 	server            *fasthttp.Server
 	listener          net.Listener
-	logger            logger_api.LoggerAPI
+	logger            logger_api.API
 	tracing           behavior.Tracer
 	tracker           behavior.Tracker
 	panicRecovery     behavior.HTTPSpecRecovery
 }
 
+// New creates a new Server struct.
 func New() *Server {
 	return &Server{}
 }
 
+// Name gives the implementation service name.
 func (s *Server) Name() string {
-	return definition.ServiceType_HTTPSpec.String()
+	return definition.ServiceTypeHTTPSpec.String()
 }
 
+// Info returns service fields to be logged.
 func (s *Server) Info() []logger_api.Attribute {
 	return []logger_api.Attribute{
 		logger.String("service.address", fmt.Sprintf(":%v", s.port.Int32())),
-		logger.String("service.mode", definition.ServiceType_HTTPSpec.String()),
+		logger.String("service.mode", definition.ServiceTypeHTTPSpec.String()),
 		logger.String("service.http_auth", fmt.Sprintf("%t", !s.defs.DisableAuth)),
 	}
 }
 
+// Run starts the HTTP (spec) server.
 func (s *Server) Run(_ context.Context, _ interface{}) error {
 	return s.server.Serve(s.listener)
 }
 
+// Stop stops the HTTP (spec) server.
 func (s *Server) Stop(_ context.Context) error {
 	return s.server.Shutdown()
 }
 
+// Initialize initializes the HTTP (spec) server internals.
 func (s *Server) Initialize(ctx context.Context, opt *plugin.ServiceOptions) error {
 	if err := s.validate(opt); err != nil {
 		return err
@@ -70,7 +80,7 @@ func (s *Server) Initialize(ctx context.Context, opt *plugin.ServiceOptions) err
 		return fmt.Errorf("could not listen to service port: %w", err)
 	}
 
-	if err := s.initializeHttpServerInternals(ctx, opt); err != nil {
+	if err := s.initializeHTTPServerInternals(ctx, opt); err != nil {
 		return err
 	}
 
@@ -108,16 +118,16 @@ func (s *Server) validate(opt *plugin.ServiceOptions) error {
 	return nil
 }
 
-// initializeHttpServerInternals is responsible for setting the HTTP server
+// initializeHTTPServerInternals is responsible for setting the HTTP server
 // initializing its routes, authentication, CORS and everything, letting it
 // in a position to be only started (put in execution) later.
-func (s *Server) initializeHttpServerInternals(ctx context.Context, opt *plugin.ServiceOptions) error {
+func (s *Server) initializeHTTPServerInternals(ctx context.Context, opt *plugin.ServiceOptions) error {
 	// Disables this router auto fix-path feature to return a proper
 	// 404 when some client uses a wrong endpoint.
 	httpRouter := router.New()
 	httpRouter.RedirectFixedPath = false
 
-	svc, ok := opt.Service.(*options.HttpSpecServiceOptions)
+	svc, ok := opt.Service.(*options.HTTPSpecServiceOptions)
 	if !ok {
 		return errors.New("unsupported ServiceOptions received on initialization")
 	}
@@ -127,7 +137,7 @@ func (s *Server) initializeHttpServerInternals(ctx context.Context, opt *plugin.
 		return err
 	}
 
-	if err = svc.ProtoHttpServer.SetupServer(
+	if err = svc.ProtoHTTPServer.SetupServer(
 		opt.Definitions.ServiceName().String(),
 		opt.Logger,
 		httpRouter,
@@ -137,7 +147,7 @@ func (s *Server) initializeHttpServerInternals(ctx context.Context, opt *plugin.
 		return err
 	}
 
-	s.registerHttpServer(httpRouter.Handler, opt)
+	s.registerHTTPServer(httpRouter.Handler, opt)
 	if s.server == nil {
 		return fmt.Errorf("could not initialize HTTP server without registering a handler first")
 	}
@@ -145,9 +155,12 @@ func (s *Server) initializeHttpServerInternals(ctx context.Context, opt *plugin.
 	return nil
 }
 
-func (s *Server) createAuthHandlers(ctx context.Context, opt *plugin.ServiceOptions) (func(ctx context.Context, handlers map[string]interface{}) error, error) {
+func (s *Server) createAuthHandlers(
+	ctx context.Context,
+	opt *plugin.ServiceOptions,
+) (func(ctx context.Context, handlers map[string]interface{}) error, error) {
 	var (
-		testMode   = opt.Env.DeploymentEnv() == definition.ServiceDeploy_Test
+		testMode   = opt.Env.DeploymentEnv() == definition.ServiceDeployTest
 		auth       = !s.defs.DisableAuth
 		authPlugin = s.getAuth(opt)
 	)
@@ -166,7 +179,7 @@ func (s *Server) createAuthHandlers(ctx context.Context, opt *plugin.ServiceOpti
 }
 
 func (s *Server) getAuth(opt *plugin.ServiceOptions) behavior.HTTPSpecAuthenticator {
-	c, err := opt.Features.Feature(options.HttpSpecAuthFeatureName)
+	c, err := opt.Features.Feature(options.HTTPSpecAuthFeatureName)
 	if err != nil {
 		return nil
 	}
@@ -179,9 +192,9 @@ func (s *Server) getAuth(opt *plugin.ServiceOptions) behavior.HTTPSpecAuthentica
 	return api.FrameworkAPI().(behavior.HTTPSpecAuthenticator)
 }
 
-// registerHttpServer binds the HTTP handler into the service. It expects that
+// registerHTTPServer binds the HTTP handler into the service. It expects that
 // all routes have already been initialized.
-func (s *Server) registerHttpServer(handler fasthttp.RequestHandler, opt *plugin.ServiceOptions) {
+func (s *Server) registerHTTPServer(handler fasthttp.RequestHandler, opt *plugin.ServiceOptions) {
 	handler = s.serverRequestHandler(handler)
 	serverCors := s.getCors(opt)
 
@@ -220,7 +233,7 @@ func (s *Server) getPanicRecovery(opt *plugin.ServiceOptions) behavior.HTTPSpecR
 }
 
 func (s *Server) getCors(opt *plugin.ServiceOptions) behavior.CorsHandler {
-	c, err := opt.Features.Feature(options.HttpCorsFeatureName)
+	c, err := opt.Features.Feature(options.HTTPCorsFeatureName)
 	if err != nil {
 		return nil
 	}
@@ -236,13 +249,7 @@ func (s *Server) getCors(opt *plugin.ServiceOptions) behavior.CorsHandler {
 func (s *Server) serverRequestHandler(h fasthttp.RequestHandler) fasthttp.RequestHandler {
 	return func(ctx *fasthttp.RequestCtx) {
 		if s.tracker != nil {
-			trackId := s.tracker.Generate()
-
-			// Set the track ID in the current context
-			s.tracker.Add(ctx, trackId)
-
-			// Set on the response header the request ID
-			ctx.Response.Header.Set(s.trackerHeaderName, trackId)
+			s.injectTrackerID(ctx)
 		}
 
 		if ctx.IsGet() && string(ctx.Path()) == "/health" {
@@ -250,25 +257,45 @@ func (s *Server) serverRequestHandler(h fasthttp.RequestHandler) fasthttp.Reques
 			return
 		}
 
-		var data interface{}
-		if s.tracing != nil {
-			d, err := s.tracing.StartMeasurements(ctx, s.Name())
-			if err != nil {
-				s.logger.Error(ctx, "tracing begin failed", logger.Error(err))
-			}
-			data = d
-		}
-
+		data := s.startTracing(ctx)
 		if s.panicRecovery != nil {
 			defer s.panicRecovery.Recover(ctx)
 		}
 
+		// Call the handler
 		h(ctx)
+		s.stopTracing(ctx, data)
+	}
+}
 
-		if s.tracing != nil {
-			if err := s.tracing.ComputeMetrics(ctx, s.Name(), data); err != nil {
-				s.logger.Error(ctx, "tracing cease failed", logger.Error(err))
-			}
+func (s *Server) injectTrackerID(ctx *fasthttp.RequestCtx) {
+	trackID := s.tracker.Generate()
+
+	// Set the track ID in the current context
+	s.tracker.Add(ctx, trackID)
+
+	// Set on the response header the request ID
+	ctx.Response.Header.Set(s.trackerHeaderName, trackID)
+}
+
+func (s *Server) startTracing(ctx *fasthttp.RequestCtx) interface{} {
+	var data interface{}
+
+	if s.tracing != nil {
+		d, err := s.tracing.StartMeasurements(ctx, s.Name())
+		if err != nil {
+			s.logger.Error(ctx, "tracing begin failed", logger.Error(err))
+		}
+		data = d
+	}
+
+	return data
+}
+
+func (s *Server) stopTracing(ctx *fasthttp.RequestCtx, data interface{}) {
+	if s.tracing != nil {
+		if err := s.tracing.ComputeMetrics(ctx, s.Name(), data); err != nil {
+			s.logger.Error(ctx, "tracing cease failed", logger.Error(err))
 		}
 	}
 }

@@ -55,7 +55,7 @@ func TestLoad(t *testing.T) {
 		err := Load(svc, &cfg)
 
 		a.Nil(err)
-		a.Equal(cfg.DeployEnv, definition.ServiceDeploy_Test)
+		a.Equal(cfg.DeployEnv, definition.ServiceDeployTest)
 		a.Equal(cfg.Region, "us-east-1")
 		a.Equal(cfg.CI, true)
 		a.Equal(cfg.Port, 8081)

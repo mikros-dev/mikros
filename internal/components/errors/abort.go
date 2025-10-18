@@ -4,6 +4,7 @@ import (
 	"fmt"
 )
 
+// AbortError represents an error type used to signify an abort operation.
 type AbortError struct {
 	Message    string
 	InnerError error

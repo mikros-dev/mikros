@@ -4,9 +4,9 @@ import (
 	"context"
 )
 
-// WorkerAPI corresponds to the API that a worker service must implement in
+// API corresponds to the API that a worker service must implement in
 // its main structure.
-type WorkerAPI interface {
+type API interface {
 	// Start must put the service in execution. It can block and wait for some
 	// signal to finish, which should be done in the Stop call. If it needs
 	// a loop, i.e., execute forever, it must be done at the service level.

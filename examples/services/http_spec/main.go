@@ -9,8 +9,8 @@ func main() {
 	s := &service{}
 	svc := mikros.NewService(&options.NewServiceOptions{
 		Service: map[string]options.ServiceOptions{
-			"http-spec": &options.HttpSpecServiceOptions{
-				ProtoHttpServer: &routes{s},
+			"http-spec": &options.HTTPSpecServiceOptions{
+				ProtoHTTPServer: &routes{s},
 			},
 		},
 	})

@@ -10,16 +10,16 @@ import (
 	"github.com/mikros-dev/mikros/components/logger"
 )
 
-// Entry is a member that all framework feature must have declared inside
+// Entry is a member that all framework features must have declared inside
 // it (as a struct member). It implements the FeatureEntry interface for the
 // feature if used.
 //
-// Also, if a feature uses it, it already receives a logger.LoggerAPI interface
+// Also, if a feature uses it, it already receives a logger.API interface
 // for it for free and error methods to return a proper error for services.
 type Entry struct {
 	featureEnabled bool
 	featureName    string
-	logger         logger_api.LoggerAPI
+	logger         logger_api.API
 	errors         errors_api.ErrorAPI
 }
 
@@ -53,7 +53,7 @@ func (e *Entry) Name() string {
 }
 
 // Logger is a helper method that gives the feature access to the logger API.
-func (e *Entry) Logger() logger_api.LoggerAPI {
+func (e *Entry) Logger() logger_api.API {
 	return e.logger
 }
 

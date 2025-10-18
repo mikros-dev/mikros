@@ -21,7 +21,7 @@
 This framework is an API built to ease and standardize the creation of applications
 that need to run for long periods, usually executing indefinitely, performing some
 specific operation. But it also supports standalone applications that execute its
-task and finishes right after.
+task and finish right after.
 
 Its main idea is to allow the user to create (or implement) an application, written
 in Go, of the following categories:
@@ -38,7 +38,7 @@ Service here is considered an application that may or may not remain running
 indefinitely, performing some type of task or waiting for commands to activate it.
 
 The framework consists of an SDK that facilitates the creation of these applications
-in a way that standardizes their code, so that they all perform tasks with the
+in a way that standardizes their code so that they all perform tasks with the
 same behavior and are written in a very similar manner. In addition to providing
 flexibility, allowing these applications to also be customized when necessary.
 
@@ -51,7 +51,7 @@ Building a service using the framework's SDK must adhere to the following points
 ### Example of a service
 
 The following example demonstrates how to create a service of a `script`
-type. The `service` structure implements an [interface](apis/services/script/script.go)
+type. The `service` structure implements an [interface](apis/services/script/api.go)
 that makes it being supported by this type of service inside the framework.
 
 ```golang

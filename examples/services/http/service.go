@@ -8,7 +8,7 @@ import (
 )
 
 type service struct {
-	Logger logger_api.LoggerAPI `mikros:"feature"`
+	Logger logger_api.API `mikros:"feature"`
 }
 
 func (s *service) HTTPHandler(_ context.Context) (http.Handler, error) {
@@ -19,5 +19,6 @@ func (s *service) HTTPHandler(_ context.Context) (http.Handler, error) {
 	mux.HandleFunc("GET /items/{id}", s.getItem)
 	mux.HandleFunc("DELETE /items/{id}", s.deleteItem)
 
+	s.Logger.Error(context.Background(), "test error")
 	return mux, nil
 }
