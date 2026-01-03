@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/lab259/cors"
+
 	"github.com/mikros-dev/mikros/apis/behavior"
 	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
 	http_api "github.com/mikros-dev/mikros/apis/services/http"
@@ -303,5 +304,9 @@ func (s *Server) Run(_ context.Context, _ interface{}) error {
 
 // Stop stops the service.
 func (s *Server) Stop(ctx context.Context) error {
+	defer func(listener net.Listener) {
+		_ = listener.Close()
+	}(s.listener)
+
 	return s.server.Shutdown(ctx)
 }

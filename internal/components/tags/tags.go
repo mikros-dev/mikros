@@ -23,6 +23,10 @@ type Tag struct {
 
 	// GrpcClientName stores the name associated with a gRPC client tag.
 	GrpcClientName string
+
+	// EnvName stores the name of the environment variable that will be used
+	// as the value source for the field.
+	EnvName string
 }
 
 // ParseTag parses a struct tag and extracts metadata into a Tag object.
@@ -44,6 +48,8 @@ func ParseTag(tag reflect.StructTag) *Tag {
 			parsedTag.IsFeature = true
 		case "definitions":
 			parsedTag.IsDefinitions = true
+		case "env":
+			parsedTag.EnvName = parts[1]
 		}
 	}
 

@@ -8,7 +8,8 @@ import (
 )
 
 type service struct {
-	Logger logger_api.API `mikros:"feature"`
+	Logger    logger_api.API `mikros:"feature"`
+	SomeValue string         `mikros:"env=SOME_VALUE"`
 }
 
 func (s *service) HTTPHandler(_ context.Context) (http.Handler, error) {
