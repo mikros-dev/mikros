@@ -62,11 +62,6 @@ func (s *Server) Initialize(ctx context.Context, opt *plugin.ServiceOptions) err
 		return err
 	}
 
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", opt.Port))
-	if err != nil {
-		return fmt.Errorf("could not listen to service port: %w", err)
-	}
-
 	svcOptions, ok := opt.Service.(*options.HTTPServiceOptions)
 	if !ok {
 		return errors.New("unsupported ServiceOptions received on initialization")
@@ -94,6 +89,12 @@ func (s *Server) Initialize(ctx context.Context, opt *plugin.ServiceOptions) err
 	// Compose the handlers
 	for i := len(chain) - 1; i >= 0; i-- {
 		h = chain[i](h)
+	}
+
+	// Create the listener for the service server.
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", opt.Port))
+	if err != nil {
+		return fmt.Errorf("could not listen to service port: %w", err)
 	}
 
 	// Initialize the service

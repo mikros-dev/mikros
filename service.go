@@ -452,31 +452,39 @@ func (s *Service) initializeServiceTaggedValues(srv interface{}) error {
 			fieldTag   = tags.ParseTag(field.Tag)
 		)
 
-		if fieldTag == nil || fieldTag.EnvName == "" {
-			continue
-		}
-		if !fieldValue.CanSet() {
+		if fieldTag == nil || fieldTag.EnvName == "" || !fieldValue.CanSet() {
 			continue
 		}
 
-		switch fieldValue.Kind() {
-		case reflect.String:
-			fieldValue.SetString(s.envs.Get(fieldTag.EnvName))
-		case reflect.Int:
-			v, err := s.envs.GetInt(fieldTag.EnvName)
-			if err != nil {
-				return err
-			}
-			fieldValue.SetInt(int64(v))
-		case reflect.Bool:
-			v, err := s.envs.GetBool(fieldTag.EnvName)
-			if err != nil {
-				return err
-			}
-			fieldValue.SetBool(v)
-		default:
-			return fmt.Errorf("field %s: unsupported type %s for env mapping", field.Name, fieldValue.Kind())
+		if err := s.setFieldFromEnv(field, fieldValue, fieldTag.EnvName); err != nil {
+			return err
 		}
+	}
+
+	return nil
+}
+
+func (s *Service) setFieldFromEnv(field reflect.StructField, fieldValue reflect.Value, envName string) error {
+	switch fieldValue.Kind() {
+	case reflect.String:
+		fieldValue.SetString(s.envs.Get(envName))
+
+	case reflect.Int:
+		v, err := s.envs.GetInt(envName)
+		if err != nil {
+			return err
+		}
+		fieldValue.SetInt(int64(v))
+
+	case reflect.Bool:
+		v, err := s.envs.GetBool(envName)
+		if err != nil {
+			return err
+		}
+		fieldValue.SetBool(v)
+
+	default:
+		return fmt.Errorf("field %s: unsupported type %s for env mapping", field.Name, fieldValue.Kind())
 	}
 
 	return nil
