@@ -129,15 +129,37 @@ func buildCoreMiddlewares(ctx context.Context, opt *plugin.ServiceOptions, defs 
 		}
 	}
 
-	if !defs.DisableAuth {
-		if auth := getAuth(opt); auth != nil {
-			chain = append(chain, func(handler http.Handler) http.Handler {
-				return http.HandlerFunc(auth.Handler)
-			})
-		}
+	if defs.DisableAuth {
+		return chain, nil
 	}
 
-	return chain, nil
+	// If authentication is enabled, the auth feature is mandatory
+	auth, err := requireHTTPAuth(opt)
+	if err != nil {
+		return nil, err
+	}
+
+	return append(chain, func(handler http.Handler) http.Handler {
+		return http.HandlerFunc(auth.Handler)
+	}), nil
+}
+
+func validateCORS(cors behavior.CorsHandler) error {
+	cfg := cors.Cors()
+
+	if len(cfg.AllowedOrigins) == 0 {
+		return errors.New("allowed origins must not be empty")
+	}
+
+	if slices.Contains(cfg.AllowedOrigins, "*") && cfg.AllowCredentials {
+		return errors.New(`allowed origins contains "*" but allow credentials is true`)
+	}
+
+	if len(cfg.AllowedMethods) == 0 {
+		return errors.New("allowed methods must not be empty")
+	}
+
+	return nil
 }
 
 type corsConfig struct {
@@ -204,6 +226,10 @@ func setCredentials(w http.ResponseWriter, origin string, cfg cors.Options) {
 	}
 }
 
+func isPreflight(r *http.Request) bool {
+	return r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != ""
+}
+
 func handlePreflight(w http.ResponseWriter, r *http.Request, c corsConfig, cfg cors.Options) {
 	w.Header().Add("Vary", "Access-Control-Request-Method")
 	w.Header().Add("Vary", "Access-Control-Request-Headers")
@@ -230,45 +256,23 @@ func handlePreflight(w http.ResponseWriter, r *http.Request, c corsConfig, cfg c
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func isPreflight(r *http.Request) bool {
-	return r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != ""
-}
-
-func validateCORS(cors behavior.CorsHandler) error {
-	cfg := cors.Cors()
-
-	if len(cfg.AllowedOrigins) == 0 {
-		return errors.New("allowed origins must not be empty")
-	}
-
-	if slices.Contains(cfg.AllowedOrigins, "*") && cfg.AllowCredentials {
-		return errors.New(`allowed origins contains "*" but allow credentials is true`)
-	}
-
-	if len(cfg.AllowedMethods) == 0 {
-		return errors.New("allowed methods must not be empty")
-	}
-
-	return nil
-}
-
-func getAuth(opt *plugin.ServiceOptions) behavior.HTTPAuthenticator {
+func requireHTTPAuth(opt *plugin.ServiceOptions) (behavior.HTTPAuthenticator, error) {
 	c, err := opt.Features.Feature(options.HTTPAuthFeatureName)
 	if err != nil {
-		return nil
+		return nil, errors.New("http auth is enabled but feature is not available")
 	}
 
 	api, ok := c.(plugin.FeatureInternalAPI)
 	if !ok {
-		return nil
+		return nil, errors.New("http auth is enabled but feature does not implement FeatureInternalAPI")
 	}
 
 	auth, ok := api.FrameworkAPI().(behavior.HTTPAuthenticator)
 	if !ok {
-		return nil
+		return nil, errors.New("http auth is enabled but feature does not implement HTTPAuthenticator")
 	}
 
-	return auth
+	return auth, nil
 }
 
 func getCors(opt *plugin.ServiceOptions) behavior.CorsHandler {
