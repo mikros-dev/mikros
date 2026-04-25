@@ -11,6 +11,8 @@ import (
 	"strings"
 	"syscall"
 
+	"google.golang.org/grpc"
+
 	"github.com/mikros-dev/mikros/apis/behavior"
 	errors_api "github.com/mikros-dev/mikros/apis/features/errors"
 	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
@@ -47,6 +49,7 @@ type Service struct {
 	features        *plugin.FeatureSet
 	services        *plugin.ServiceSet
 	tracker         *tracker.Tracker
+	grpcConns       []*grpc.ClientConn
 }
 
 // ServiceName is the way to retrieve a service name from a string.
@@ -524,6 +527,7 @@ func (s *Service) coupleClients(srv interface{}) error {
 		if err != nil {
 			return err
 		}
+		s.grpcConns = append(s.grpcConns, conn)
 
 		call := reflect.ValueOf(client.NewClientFunction)
 		out := call.Call([]reflect.Value{reflect.ValueOf(conn)})
@@ -627,6 +631,12 @@ func (s *Service) run(ctx context.Context, srv interface{}) {
 
 func (s *Service) stopService(ctx context.Context) {
 	s.logger.Info(ctx, "stopping service")
+
+	for _, conn := range s.grpcConns {
+		if err := conn.Close(); err != nil {
+			s.logger.Error(ctx, "could not close gRPC connection", logger.Error(err))
+		}
+	}
 
 	if err := s.stopDependentServices(ctx); err != nil {
 		s.logger.Error(ctx, "could not stop other running services", logger.Error(err))
