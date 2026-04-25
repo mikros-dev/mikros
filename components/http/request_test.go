@@ -141,6 +141,20 @@ func TestBindBody(t *testing.T) {
 		assert.Error(t, err)
 	})
 
+	t.Run("should enforce default max body size", func(t *testing.T) {
+		var (
+			body = `{"name":"` + strings.Repeat("a", int(defaultBindBodyMaxBytes)) + `"}`
+			r    = httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
+			v    = struct {
+				Name string `json:"name"`
+			}{}
+		)
+
+		err := BindBody(r, &v)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "request body exceeds")
+	})
+
 	t.Run("should disallow unknown fields when configured", func(t *testing.T) {
 		var (
 			body = `{"name":"John","age":30,"unknown":"field"}`

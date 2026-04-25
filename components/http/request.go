@@ -16,6 +16,10 @@ import (
 	"github.com/stoewer/go-strcase"
 )
 
+const (
+	defaultBindBodyMaxBytes int64 = 4 << 20 // 4MB as default
+)
+
 // Bind extracts and binds HTTP request parameters to a struct based on struct
 // field tags. It supports binding from multiple sources (path, query, headers)
 // based on the `http` struct tag.
@@ -174,7 +178,8 @@ func isZeroValue(v reflect.Value) bool {
 
 // BindBodyOptions configures the behavior of BindBody.
 type BindBodyOptions struct {
-	// MaxBytes limits the size of the request body (0 = unlimited)
+	// MaxBytes limits the size of the request body. Zero value uses the internal
+	// default.
 	MaxBytes int64
 
 	// DisallowUnknownFields reject JSON with fields not present in the target
@@ -189,11 +194,23 @@ func BindBody(r *http.Request, target interface{}, options ...BindBodyOptions) e
 	if len(options) > 0 {
 		bindOpts = options[0]
 	}
-
-	body := io.Reader(r.Body)
-	if bindOpts.MaxBytes > 0 {
-		body = io.LimitReader(body, bindOpts.MaxBytes)
+	if bindOpts.MaxBytes <= 0 {
+		bindOpts.MaxBytes = defaultBindBodyMaxBytes
 	}
+
+	// Reject immediately if the body is too large
+	if r.ContentLength > bindOpts.MaxBytes && r.ContentLength != -1 {
+		return fmt.Errorf("request body exceeds %d bytes", bindOpts.MaxBytes)
+	}
+
+	var (
+		limitReader = &io.LimitedReader{
+			R: r.Body,
+			N: bindOpts.MaxBytes + 1,
+		}
+
+		body = io.Reader(limitReader)
+	)
 
 	dec := json.NewDecoder(body)
 	if bindOpts.DisallowUnknownFields {
@@ -201,6 +218,10 @@ func BindBody(r *http.Request, target interface{}, options ...BindBodyOptions) e
 	}
 
 	if err := dec.Decode(target); err != nil {
+		if limitReader.N == 0 {
+			return fmt.Errorf("request body exceeds %d bytes", bindOpts.MaxBytes)
+		}
+
 		return err
 	}
 
