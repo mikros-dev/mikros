@@ -9,7 +9,6 @@ func main() {
     svc := mikros.NewService(&options.NewServiceOptions{
         Service: map[string]options.ServiceOptions{
 			"script": &options.ScriptServiceOptions{},
-
 		},
     })
 

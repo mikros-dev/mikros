@@ -28,7 +28,10 @@ func (r *routes) SetupServer(_ string, _ interface{}, router *router.Router, _ i
 			return
 		}
 
-		name := ctx.UserValue("name").(string)
+		name, ok := ctx.UserValue("name").(string)
+		if !ok {
+			ctx.Response.SetStatusCode(fasthttp.StatusInternalServerError)
+		}
 		req.Name = name
 
 		// Call the handler

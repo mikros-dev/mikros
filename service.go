@@ -344,7 +344,11 @@ func (s *Service) setupLoggerExtractor() error {
 	}
 
 	if api, ok := e.(plugin.FeatureInternalAPI); ok {
-		extractor := api.(behavior.LoggerExtractor)
+		extractor, ok := api.FrameworkAPI().(behavior.LoggerExtractor)
+		if !ok {
+			return fmt.Errorf("could retrieve feature %s to logger extractor", options.LoggerExtractorFeatureName)
+		}
+
 		s.logger.SetContextFieldExtractor(extractor.Extract)
 	}
 

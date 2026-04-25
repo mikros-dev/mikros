@@ -79,19 +79,35 @@ func (s *Server) Initialize(ctx context.Context, opt *plugin.ServiceOptions) err
 		return err
 	}
 
+	s.port = opt.Port
+	s.logger = opt.Logger
+	s.trackerHeaderName = opt.Env.TrackerHeaderName()
+
+	tr, err := s.getTracker(opt)
+	if err != nil {
+		return err
+	}
+	s.tracker = tr
+
+	t, err := s.getTracing(opt)
+	if err != nil {
+		return err
+	}
+	s.tracing = t
+
+	p, err := s.getPanicRecovery(opt)
+	if err != nil {
+		return err
+	}
+	s.panicRecovery = p
+
+	// Starts the listener last so we don't need to worry about closing it in
+	// other error paths.
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", opt.Port))
 	if err != nil {
 		return fmt.Errorf("could not listen to service port: %w", err)
 	}
-
 	s.listener = listener
-	s.port = opt.Port
-	s.logger = opt.Logger
-	s.tracing = s.getTracing(opt)
-	s.tracker = s.getTracker(opt)
-	s.trackerHeaderName = opt.Env.TrackerHeaderName()
-
-	s.panicRecovery = s.getPanicRecovery(opt)
 
 	return nil
 }
@@ -147,7 +163,9 @@ func (s *Server) initializeHTTPServerInternals(ctx context.Context, opt *plugin.
 		return err
 	}
 
-	s.registerHTTPServer(httpRouter.Handler, opt)
+	if err := s.registerHTTPServer(httpRouter.Handler, opt); err != nil {
+		return err
+	}
 	if s.server == nil {
 		return fmt.Errorf("could not initialize HTTP server without registering a handler first")
 	}
@@ -159,45 +177,53 @@ func (s *Server) createAuthHandlers(
 	ctx context.Context,
 	opt *plugin.ServiceOptions,
 ) (func(ctx context.Context, handlers map[string]interface{}) error, error) {
-	var (
-		testMode   = opt.Env.DeploymentEnv() == definition.ServiceDeployTest
-		auth       = !s.defs.DisableAuth
-		authPlugin = s.getAuth(opt)
-	)
-
 	// If we're running tests, we won't have authenticated endpoints
-	if testMode {
+	if opt.Env.DeploymentEnv() == definition.ServiceDeployTest {
 		return nil, nil
 	}
 
-	if !auth || authPlugin == nil {
+	// Also, if running with authentication disabled
+	if !s.defs.DisableAuth {
 		return nil, nil
+	}
+
+	authPlugin, err := s.getAuth(opt)
+	if err != nil {
+		return nil, err
 	}
 
 	opt.Logger.Info(ctx, "using authenticated HTTP endpoints")
 	return authPlugin.AuthHandlers()
 }
 
-func (s *Server) getAuth(opt *plugin.ServiceOptions) behavior.HTTPSpecAuthenticator {
-	c, err := opt.Features.Feature(options.HTTPSpecAuthFeatureName)
+func (s *Server) getAuth(opt *plugin.ServiceOptions) (behavior.HTTPSpecAuthenticator, error) {
+	f, err := opt.Features.Feature(options.HTTPSpecAuthFeatureName)
 	if err != nil {
-		return nil
+		return nil, errors.New("http auth is enabled but feature is not available")
 	}
 
-	api, ok := c.(plugin.FeatureInternalAPI)
+	api, ok := f.(plugin.FeatureInternalAPI)
 	if !ok {
-		return nil
+		return nil, errors.New("http auth is enabled but feature does not implement FeatureInternalAPI")
 	}
 
-	return api.FrameworkAPI().(behavior.HTTPSpecAuthenticator)
+	a, ok := api.FrameworkAPI().(behavior.HTTPSpecAuthenticator)
+	if !ok {
+		return nil, errors.New("http auth is enabled but feature does not implement HTTPSpecAuthenticator")
+	}
+
+	return a, nil
 }
 
 // registerHTTPServer binds the HTTP handler into the service. It expects that
 // all routes have already been initialized.
-func (s *Server) registerHTTPServer(handler fasthttp.RequestHandler, opt *plugin.ServiceOptions) {
+func (s *Server) registerHTTPServer(handler fasthttp.RequestHandler, opt *plugin.ServiceOptions) error {
 	handler = s.serverRequestHandler(handler)
-	serverCors := s.getCors(opt)
 
+	serverCors, err := s.getCors(opt)
+	if err != nil {
+		return err
+	}
 	if serverCors != nil {
 		handler = cors.New(serverCors.Cors()).Handler(handler)
 	}
@@ -212,38 +238,50 @@ func (s *Server) registerHTTPServer(handler fasthttp.RequestHandler, opt *plugin
 		WriteBufferSize:       64 * 1024,
 		MaxRequestBodySize:    s.defs.MaxRequestBodySize * 1024 * 1024,
 	}
+
+	return nil
 }
 
-func (s *Server) getPanicRecovery(opt *plugin.ServiceOptions) behavior.HTTPSpecRecovery {
+func (s *Server) getPanicRecovery(opt *plugin.ServiceOptions) (behavior.HTTPSpecRecovery, error) {
 	if s.defs.DisablePanicRecovery {
-		return nil
+		return nil, nil
 	}
 
 	c, err := opt.Features.Feature(options.PanicRecoveryFeatureName)
 	if err != nil {
-		return nil
+		return nil, errors.New("panic recovery is enabled but feature is not available")
 	}
 
 	api, ok := c.(plugin.FeatureInternalAPI)
 	if !ok {
-		return nil
+		return nil, errors.New("panic recovery is enabled but feature does not implement FeatureInternalAPI")
 	}
 
-	return api.FrameworkAPI().(behavior.HTTPSpecRecovery)
+	p, ok := api.FrameworkAPI().(behavior.HTTPSpecRecovery)
+	if !ok {
+		return nil, errors.New("panic recovery is enabled but feature does not implement HTTPSpecRecovery")
+	}
+
+	return p, nil
 }
 
-func (s *Server) getCors(opt *plugin.ServiceOptions) behavior.CorsHandler {
-	c, err := opt.Features.Feature(options.HTTPCorsFeatureName)
+func (s *Server) getCors(opt *plugin.ServiceOptions) (behavior.CorsHandler, error) {
+	f, err := opt.Features.Feature(options.HTTPCorsFeatureName)
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 
-	api, ok := c.(plugin.FeatureInternalAPI)
+	api, ok := f.(plugin.FeatureInternalAPI)
 	if !ok {
-		return nil
+		return nil, errors.New("http cors feature exists but does not implement FeatureInternalAPI")
 	}
 
-	return api.FrameworkAPI().(behavior.CorsHandler)
+	c, ok := api.FrameworkAPI().(behavior.CorsHandler)
+	if !ok {
+		return nil, errors.New("http cors feature exists but does not implement CorsHandler")
+	}
+
+	return c, nil
 }
 
 func (s *Server) serverRequestHandler(h fasthttp.RequestHandler) fasthttp.RequestHandler {
@@ -304,30 +342,40 @@ func (s *Server) handleHTTPError(ctx *fasthttp.RequestCtx, err error) {
 	s.logger.Error(ctx, "http error", logger.Error(err))
 }
 
-func (s *Server) getTracing(opt *plugin.ServiceOptions) behavior.Tracer {
-	t, err := opt.Features.Feature(options.TracingFeatureName)
+func (s *Server) getTracing(opt *plugin.ServiceOptions) (behavior.Tracer, error) {
+	f, err := opt.Features.Feature(options.TracingFeatureName)
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 
-	api, ok := t.(plugin.FeatureInternalAPI)
+	api, ok := f.(plugin.FeatureInternalAPI)
 	if !ok {
-		return nil
+		return nil, errors.New("tracing feature exists but does not implement FeatureInternalAPI")
 	}
 
-	return api.FrameworkAPI().(behavior.Tracer)
+	t, ok := api.FrameworkAPI().(behavior.Tracer)
+	if !ok {
+		return nil, errors.New("tracing feature exists but does not implement Tracer")
+	}
+
+	return t, nil
 }
 
-func (s *Server) getTracker(opt *plugin.ServiceOptions) behavior.Tracker {
-	t, err := opt.Features.Feature(options.TrackerFeatureName)
+func (s *Server) getTracker(opt *plugin.ServiceOptions) (behavior.Tracker, error) {
+	f, err := opt.Features.Feature(options.TrackerFeatureName)
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 
-	api, ok := t.(plugin.FeatureInternalAPI)
+	api, ok := f.(plugin.FeatureInternalAPI)
 	if !ok {
-		return nil
+		return nil, errors.New("tracker feature exists but does not implement FeatureInternalAPI")
 	}
 
-	return api.FrameworkAPI().(behavior.Tracker)
+	t, ok := api.FrameworkAPI().(behavior.Tracker)
+	if !ok {
+		return nil, errors.New("tracker feature exists but does not implement Tracker")
+	}
+
+	return t, nil
 }
