@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/lab259/cors"
+
 	"github.com/mikros-dev/mikros/apis/behavior"
 	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
 	http_api "github.com/mikros-dev/mikros/apis/services/http"
@@ -61,11 +62,6 @@ func (s *Server) Initialize(ctx context.Context, opt *plugin.ServiceOptions) err
 		return err
 	}
 
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", opt.Port))
-	if err != nil {
-		return fmt.Errorf("could not listen to service port: %w", err)
-	}
-
 	svcOptions, ok := opt.Service.(*options.HTTPServiceOptions)
 	if !ok {
 		return errors.New("unsupported ServiceOptions received on initialization")
@@ -93,6 +89,12 @@ func (s *Server) Initialize(ctx context.Context, opt *plugin.ServiceOptions) err
 	// Compose the handlers
 	for i := len(chain) - 1; i >= 0; i-- {
 		h = chain[i](h)
+	}
+
+	// Create the listener for the service server.
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", opt.Port))
+	if err != nil {
+		return fmt.Errorf("could not listen to service port: %w", err)
 	}
 
 	// Initialize the service
@@ -303,5 +305,9 @@ func (s *Server) Run(_ context.Context, _ interface{}) error {
 
 // Stop stops the service.
 func (s *Server) Stop(ctx context.Context) error {
+	defer func(listener net.Listener) {
+		_ = listener.Close()
+	}(s.listener)
+
 	return s.server.Shutdown(ctx)
 }

@@ -349,8 +349,9 @@ func (s *Service) setupLoggerExtractor() error {
 }
 
 func (s *Service) initializeServiceInternals(ctx context.Context, srv interface{}) *merrors.AbortError {
-	if err := s.initializeRegisteredServices(ctx, srv); err != nil {
-		return merrors.NewAbortError("could not initialize internal services", err)
+	// Initialize fields inside the service struct according to their tags.
+	if err := s.initializeServiceTaggedValues(srv); err != nil {
+		return merrors.NewAbortError("could not initialize service tagged values", err)
 	}
 
 	// Establishes connection with all gRPC clients.
@@ -373,6 +374,12 @@ func (s *Service) initializeServiceInternals(ctx context.Context, srv interface{
 		if err := validations.EnsureValuesAreInitialized(srv); err != nil {
 			return merrors.NewAbortError("service server object is not properly initialized", err)
 		}
+	}
+
+	// Initialize all registered service types after everything we need to
+	// handle with the service structure is already completed.
+	if err := s.initializeRegisteredServices(ctx, srv); err != nil {
+		return merrors.NewAbortError("could not initialize internal services", err)
 	}
 
 	return nil
@@ -430,6 +437,57 @@ func (s *Service) getServicePort(port service.ServerPort, serviceType string) se
 	}
 
 	return port
+}
+
+func (s *Service) initializeServiceTaggedValues(srv interface{}) error {
+	var (
+		v = reflect.ValueOf(srv).Elem()
+		t = v.Type()
+	)
+
+	for i := 0; i < t.NumField(); i++ {
+		var (
+			field      = t.Field(i)
+			fieldValue = v.Field(i)
+			fieldTag   = tags.ParseTag(field.Tag)
+		)
+
+		if fieldTag == nil || fieldTag.EnvName == "" || !fieldValue.CanSet() {
+			continue
+		}
+
+		if err := s.setFieldFromEnv(field, fieldValue, fieldTag.EnvName); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *Service) setFieldFromEnv(field reflect.StructField, fieldValue reflect.Value, envName string) error {
+	switch fieldValue.Kind() {
+	case reflect.String:
+		fieldValue.SetString(s.envs.Get(envName))
+
+	case reflect.Int:
+		v, err := s.envs.GetInt(envName)
+		if err != nil {
+			return err
+		}
+		fieldValue.SetInt(int64(v))
+
+	case reflect.Bool:
+		v, err := s.envs.GetBool(envName)
+		if err != nil {
+			return err
+		}
+		fieldValue.SetBool(v)
+
+	default:
+		return fmt.Errorf("field %s: unsupported type %s for env mapping", field.Name, fieldValue.Kind())
+	}
+
+	return nil
 }
 
 // coupleClients establishes connections with all client services that a service
