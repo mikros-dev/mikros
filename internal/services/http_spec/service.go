@@ -75,13 +75,13 @@ func (s *Server) Initialize(ctx context.Context, opt *plugin.ServiceOptions) err
 	// Initialize specific service definitions
 	s.defs = newDefinitions(opt.Definitions)
 
+	if err := s.initializeHTTPServerInternals(ctx, opt); err != nil {
+		return err
+	}
+
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", opt.Port))
 	if err != nil {
 		return fmt.Errorf("could not listen to service port: %w", err)
-	}
-
-	if err := s.initializeHTTPServerInternals(ctx, opt); err != nil {
-		return err
 	}
 
 	s.listener = listener
@@ -118,8 +118,8 @@ func (s *Server) validate(opt *plugin.ServiceOptions) error {
 	return nil
 }
 
-// initializeHTTPServerInternals is responsible for setting the HTTP server
-// initializing its routes, authentication, CORS and everything, letting it
+// initializeHTTPServerInternals is responsible for setting the HTTP server,
+// initializing its routes, authentication, CORS, and everything, letting it
 // in a position to be only started (put in execution) later.
 func (s *Server) initializeHTTPServerInternals(ctx context.Context, opt *plugin.ServiceOptions) error {
 	// Disables this router auto fix-path feature to return a proper
