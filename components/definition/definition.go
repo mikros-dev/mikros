@@ -23,7 +23,7 @@ import (
 //revive:disable:line-length-limit
 type Definitions struct {
 	Name     string                            `toml:"name" validate:"required"`
-	Types    []string                          `toml:"types" validate:"required,single_script,no_duplicated_service,dive,service_type"`
+	Types    []string                          `toml:"types" validate:"required,single_script,no_duplicated_runtime,dive,runtime_type"`
 	Version  string                            `toml:"version" validate:"required,version"`
 	Language string                            `toml:"language" validate:"required,oneof=go rust"`
 	Product  string                            `toml:"product" validate:"required"`
@@ -33,11 +33,11 @@ type Definitions struct {
 	Tests    Tests                             `toml:"tests,omitempty"`
 	Service  map[string]interface{}            `toml:"service,omitempty"`
 	Clients  map[string]GrpcClient             `toml:"clients,omitempty"`
-	Services map[string]map[string]interface{} `toml:"services,omitempty"`
+	Runtimes map[string]map[string]interface{} `toml:"runtimes,omitempty"`
 
 	path                  string
-	supportedServiceTypes []string
-	externalServices      map[string]ExternalServiceEntry
+	supportedRuntimeTypes []string
+	externalRuntimes      map[string]ExternalRuntimeEntry
 }
 
 // Log represents configuration settings for logging in a service.
@@ -72,10 +72,10 @@ type ExternalFeatureEntry interface {
 	Validate() error
 }
 
-// ExternalServiceEntry is a behavior that all external services implementations
+// ExternalRuntimeEntry is a behavior that all external runtime implementations
 // must have to be supported by the Definitions object.
-type ExternalServiceEntry interface {
-	// Name must return the service name that the definitions will support.
+type ExternalRuntimeEntry interface {
+	// Name must return the runtime name that the definitions will support.
 	Name() string
 
 	// Validate should validate if the custom settings are valid or not.
@@ -98,8 +98,8 @@ func New() (*Definitions, error) {
 		return nil, err
 	}
 
-	// Starts with framework's services
-	defs.supportedServiceTypes = SupportedServiceTypes()
+	// Starts with framework's runtimes
+	defs.supportedRuntimeTypes = SupportedRuntimeTypes()
 
 	return defs, nil
 }
@@ -115,7 +115,7 @@ func (d *Definitions) Validate() error {
 		return err
 	}
 
-	if err := validate.RegisterValidationCtx("service_type", serviceTypeValidator); err != nil {
+	if err := validate.RegisterValidationCtx("runtime_type", runtimeTypeValidator); err != nil {
 		return err
 	}
 
@@ -123,18 +123,18 @@ func (d *Definitions) Validate() error {
 		return err
 	}
 
-	if err := validate.RegisterValidationCtx("no_duplicated_service", duplicatedServicesValidator); err != nil {
+	if err := validate.RegisterValidationCtx("no_duplicated_runtime", duplicatedRuntimeValidator); err != nil {
 		return err
 	}
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, serviceTypeCtx{}, d.supportedServiceTypes)
+	ctx = context.WithValue(ctx, runtimeTypeCtx{}, d.supportedRuntimeTypes)
 
 	if err := validate.StructCtx(ctx, d); err != nil {
 		return err
 	}
 
-	for _, svc := range d.externalServices {
+	for _, svc := range d.externalRuntimes {
 		if err := svc.Validate(); err != nil {
 			return err
 		}
@@ -149,11 +149,11 @@ func (d *Definitions) Validate() error {
 	return nil
 }
 
-// IsServiceType checks if the current service definitions is of a specific
-// service type.
-func (d *Definitions) IsServiceType(serviceType ServiceType) bool {
-	for t := range d.ServiceTypes() {
-		if t == serviceType {
+// IsRuntimeType checks if the current service definitions is of a specific
+// runtime type.
+func (d *Definitions) IsRuntimeType(runtimeType RuntimeType) bool {
+	for t := range d.RuntimeTypes() {
+		if t == runtimeType {
 			return true
 		}
 	}
@@ -166,41 +166,39 @@ func (d *Definitions) ServiceName() service.Name {
 	return service.FromString(d.Name)
 }
 
-// ServiceTypesAsString converts all service types in the definitions to a
+// RuntimeTypesAsString converts all runtime types in the definitions to a
 // single comma-separated string.
-func (d *Definitions) ServiceTypesAsString() string {
+func (d *Definitions) RuntimeTypesAsString() string {
 	var s []string
 
-	for t := range d.ServiceTypes() {
+	for t := range d.RuntimeTypes() {
 		s = append(s, t.String())
 	}
 
 	return strings.Join(s, ",")
 }
 
-// ServiceTypes gives back all service types found inside the service definitions.
-func (d *Definitions) ServiceTypes() map[ServiceType]service.ServerPort {
-	services := make(map[ServiceType]service.ServerPort)
-
-	for _, serviceType := range d.Types {
-		t, p := splitTypeAndPort(serviceType)
+// RuntimeTypes gives back all runtime types found inside the service definitions.
+func (d *Definitions) RuntimeTypes() map[RuntimeType]service.ServerPort {
+	runtimes := make(map[RuntimeType]service.ServerPort)
+	for _, rt := range d.Types {
+		t, p := splitTypeAndPort(rt)
 
 		var (
-			serviceType = CreateServiceType(t)
+			runtimeType = CreateRuntimeType(t)
 			port        = service.ServerPort(p)
 		)
 
-		services[serviceType] = port
+		runtimes[runtimeType] = port
 	}
 
-	return services
+	return runtimes
 }
 
-func splitTypeAndPort(serviceType string) (string, int32) {
-	parts := strings.Split(serviceType, ":")
-
+func splitTypeAndPort(runtimeType string) (string, int32) {
+	parts := strings.Split(runtimeType, ":")
 	if len(parts) == 1 {
-		return serviceType, int32(0)
+		return runtimeType, int32(0)
 	}
 
 	// Ignores the error since the Validate was already called.
@@ -229,19 +227,19 @@ func (d *Definitions) ExternalFeatureDefinitions(name string) (ExternalFeatureEn
 	return v, nil
 }
 
-// AddExternalServiceDefinitions adds definitions from external service into
+// AddExternalRuntimeDefinitions adds definitions from external runtime into
 // the Definitions object.
-func (d *Definitions) AddExternalServiceDefinitions(name string, defs ExternalServiceEntry) {
-	if d.externalServices == nil {
-		d.externalServices = make(map[string]ExternalServiceEntry)
+func (d *Definitions) AddExternalRuntimeDefinitions(name string, defs ExternalRuntimeEntry) {
+	if d.externalRuntimes == nil {
+		d.externalRuntimes = make(map[string]ExternalRuntimeEntry)
 	}
 
-	d.externalServices[name] = defs
+	d.externalRuntimes[name] = defs
 }
 
-// AddSupportedServiceType adds a new service type as supported by the service
+// AddSupportedRuntimeType adds a new runtime type as supported by the service
 // definitions.
-func (d *Definitions) AddSupportedServiceType(name string) {
+func (d *Definitions) AddSupportedRuntimeType(name string) {
 	isIn := func(n string, h []string) bool {
 		for _, e := range h {
 			if e == n {
@@ -252,15 +250,15 @@ func (d *Definitions) AddSupportedServiceType(name string) {
 		return false
 	}
 
-	if !isIn(name, d.supportedServiceTypes) {
-		d.supportedServiceTypes = append(d.supportedServiceTypes, name)
+	if !isIn(name, d.supportedRuntimeTypes) {
+		d.supportedRuntimeTypes = append(d.supportedRuntimeTypes, name)
 	}
 }
 
-// ExternalServiceDefinitions retrieves definitions from an external service
+// ExternalRuntimeDefinitions retrieves definitions from an external runtime
 // previously added into the Definitions.
-func (d *Definitions) ExternalServiceDefinitions(name string) (ExternalServiceEntry, error) {
-	v, ok := d.externalServices[name]
+func (d *Definitions) ExternalRuntimeDefinitions(name string) (ExternalRuntimeEntry, error) {
+	v, ok := d.externalRuntimes[name]
 	if !ok {
 		return nil, fmt.Errorf("could not find definitions for service '%v'", name)
 	}
@@ -268,9 +266,9 @@ func (d *Definitions) ExternalServiceDefinitions(name string) (ExternalServiceEn
 	return v, nil
 }
 
-// LoadService retrieves only definitions from a specific service type.
-func (d *Definitions) LoadService(serviceType ServiceType) (map[string]interface{}, bool) {
-	dd, ok := d.Services[serviceType.String()]
+// LoadRuntime retrieves only definitions from a specific runtime type.
+func (d *Definitions) LoadRuntime(runtimeType RuntimeType) (map[string]interface{}, bool) {
+	dd, ok := d.Runtimes[runtimeType.String()]
 	return dd, ok
 }
 

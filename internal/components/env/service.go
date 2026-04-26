@@ -84,7 +84,7 @@ func (s *ServiceEnvs) DefinedEnv(name string) (string, bool) {
 }
 
 // DeploymentEnv retrieves the deployment environment of the service.
-func (s *ServiceEnvs) DeploymentEnv() definition.ServiceDeploy {
+func (s *ServiceEnvs) DeploymentEnv() definition.DeploymentEnv {
 	return s.envs.DeploymentEnv
 }
 

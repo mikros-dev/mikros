@@ -6,9 +6,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSupportedServiceTypes(t *testing.T) {
-	t.Run("should have all supported services", func(t *testing.T) {
-		types := SupportedServiceTypes()
+func TestSupportedRuntimeTypes(t *testing.T) {
+	t.Run("should have all supported runtimes", func(t *testing.T) {
+		types := SupportedRuntimeTypes()
 		a := assert.New(t)
 		a.Equal(5, len(types))
 	})

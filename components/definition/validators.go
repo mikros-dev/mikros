@@ -20,22 +20,22 @@ func ValidateVersion(input string) bool {
 	return regexp.MustCompile("^v[0-9]{1,2}(|[.][0-9]{1,2})(|[.][0-9]{1,2})$").MatchString(input)
 }
 
-// serviceTypeValidator validates if a valid service type was used inside the
+// runtimeTypeValidator validates if a valid runtime type was used inside the
 // settings file. It also supports the notation 'type:port', where one can
-// set a custom server port for the specific service type.
-func serviceTypeValidator(ctx context.Context, fl validator.FieldLevel) bool {
-	serviceType := fl.Field().String()
-	if serviceType == "" {
+// set a custom server port for the specific runtime type.
+func runtimeTypeValidator(ctx context.Context, fl validator.FieldLevel) bool {
+	rt := fl.Field().String()
+	if rt == "" {
 		return true
 	}
 
-	supportedTypes, ok := ctx.Value(serviceTypeCtx{}).([]string)
+	supportedTypes, ok := ctx.Value(runtimeTypeCtx{}).([]string)
 	if !ok {
 		return false
 	}
 
-	if strings.Contains(serviceType, ":") {
-		parts := strings.Split(serviceType, ":")
+	if strings.Contains(rt, ":") {
+		parts := strings.Split(rt, ":")
 		if len(parts) > 1 {
 			// The server port was defined and we must validate it.
 			if !validatePort(parts[1]) {
@@ -43,11 +43,11 @@ func serviceTypeValidator(ctx context.Context, fl validator.FieldLevel) bool {
 			}
 		}
 
-		serviceType = parts[0]
+		rt = parts[0]
 	}
 
 	for _, t := range supportedTypes {
-		if serviceType == t {
+		if rt == t {
 			return true
 		}
 	}
@@ -60,11 +60,11 @@ func validatePort(port string) bool {
 	return err == nil
 }
 
-// scriptTypeUniqueValidator validates if the 'script' service type is alone in
+// scriptTypeUniqueValidator validates if the 'script' runtime type is alone in
 // the list.
 func scriptTypeUniqueValidator(_ context.Context, fl validator.FieldLevel) bool {
 	if list, ok := fl.Field().Interface().([]string); ok {
-		index := slices.Index(list, ServiceTypeScript.String())
+		index := slices.Index(list, RuntimeTypeScript.String())
 		if index != -1 && len(list) > 1 {
 			return false
 		}
@@ -73,8 +73,8 @@ func scriptTypeUniqueValidator(_ context.Context, fl validator.FieldLevel) bool 
 	return true
 }
 
-// duplicatedServicesValidator validates if the list contains duplicated elements.
-func duplicatedServicesValidator(_ context.Context, fl validator.FieldLevel) bool {
+// duplicatedRuntimeValidator validates if the list contains duplicated elements.
+func duplicatedRuntimeValidator(_ context.Context, fl validator.FieldLevel) bool {
 	if list, ok := fl.Field().Interface().([]string); ok {
 		types := make(map[string]bool)
 		for _, t := range list {

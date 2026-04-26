@@ -10,7 +10,7 @@ import (
 
 // ServiceTesting is an object created by a Service.SetupTest call.
 //
-// It should be used when creating unit tests that need to use features,
+// It should be used when creating unit tests that need to use registeredFeatures,
 // internal or external, and require some kind of setup/teardown mechanism.
 type ServiceTesting struct {
 	svc  *Service
@@ -18,7 +18,7 @@ type ServiceTesting struct {
 }
 
 func setupServiceTesting(ctx context.Context, svc *Service, t *testing.Testing) *ServiceTesting {
-	if svc.envs.DeploymentEnv() != definition.ServiceDeployTest {
+	if svc.envs.DeploymentEnv() != definition.DeploymentEnvTest {
 		return &ServiceTesting{}
 	}
 
@@ -28,7 +28,7 @@ func setupServiceTesting(ctx context.Context, svc *Service, t *testing.Testing) 
 	}
 
 	// Sets up every plugin that needs.
-	iter := svc.features.Iterator()
+	iter := svc.registeredFeatures.Iterator()
 	for p, next := iter.Next(); next; p, next = iter.Next() {
 		if featureTester, ok := p.(plugin.FeatureTester); ok {
 			featureTester.Setup(ctx, t)
@@ -40,7 +40,7 @@ func setupServiceTesting(ctx context.Context, svc *Service, t *testing.Testing) 
 
 // Teardown releases every resource allocated by the SetupTest call.
 func (s *ServiceTesting) Teardown(ctx context.Context) {
-	iter := s.svc.features.Iterator()
+	iter := s.svc.registeredFeatures.Iterator()
 	for p, next := iter.Next(); next; p, next = iter.Next() {
 		if featureTester, ok := p.(plugin.FeatureTester); ok {
 			featureTester.Teardown(ctx, s.test)
@@ -48,9 +48,9 @@ func (s *ServiceTesting) Teardown(ctx context.Context) {
 	}
 }
 
-// Do is a function that executes tests from inside all registered features.
+// Do is a function that executes tests from inside all registered registeredFeatures.
 func (s *ServiceTesting) Do(ctx context.Context) error {
-	iter := s.svc.features.Iterator()
+	iter := s.svc.registeredFeatures.Iterator()
 	for p, next := iter.Next(); next; p, next = iter.Next() {
 		if featureTester, ok := p.(plugin.FeatureTester); ok {
 			if err := featureTester.DoTest(ctx, s.test, s.svc.definitions.ServiceName()); err != nil {

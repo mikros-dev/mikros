@@ -9,7 +9,7 @@ import (
 // Options defines the configuration for service lifecycle controls,
 // including the environment and test execution settings.
 type Options struct {
-	Env            definition.ServiceDeploy
+	Env            definition.DeploymentEnv
 	ExecuteOnTests bool
 }
 
@@ -42,7 +42,7 @@ func OnFinish(ctx context.Context, s interface{}, opt *Options) {
 func shouldExecute(opt *Options) bool {
 	// Do not execute lifecycle events by default in tests to force them to mock
 	// features that are being initialized by the service.
-	if opt.Env == definition.ServiceDeployTest {
+	if opt.Env == definition.DeploymentEnvTest {
 		return opt.ExecuteOnTests
 	}
 

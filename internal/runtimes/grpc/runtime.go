@@ -23,7 +23,7 @@ import (
 	"github.com/mikros-dev/mikros/components/service"
 )
 
-// Server represents the gRPC service server.
+// Server represents the gRPC runtime server.
 type Server struct {
 	port             service.ServerPort
 	server           *grpc.Server
@@ -38,16 +38,15 @@ func New() *Server {
 	return &Server{}
 }
 
-// Name gives the implementation service name.
+// Name gives the implementation runtime name.
 func (s *Server) Name() string {
-	return definition.ServiceTypeGRPC.String()
+	return definition.RuntimeTypeGRPC.String()
 }
 
-// Info returns service fields to be logged.
+// Info returns runtime fields to be logged.
 func (s *Server) Info() []logger_api.Attribute {
 	return []logger_api.Attribute{
-		logger.String("service.address", fmt.Sprintf(":%v", s.port.Int32())),
-		logger.String("service.mode", definition.ServiceTypeGRPC.String()),
+		logger.String("grpc.listening_address", fmt.Sprintf(":%v", s.port.Int32())),
 	}
 }
 
@@ -59,19 +58,19 @@ func (s *Server) Run(_ context.Context, srv interface{}) error {
 }
 
 // Initialize initializes the gRPC server internals.
-func (s *Server) Initialize(_ context.Context, opt *plugin.ServiceOptions) error {
+func (s *Server) Initialize(_ context.Context, opt *plugin.RuntimeOptions) error {
 	if err := s.validate(opt); err != nil {
 		return err
+	}
+
+	svc, ok := opt.ServiceOptions.(*options.GrpcServiceOptions)
+	if !ok {
+		return errors.New("unsupported RuntimeOptions received on initialization")
 	}
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", opt.Port))
 	if err != nil {
 		return fmt.Errorf("could not listen to service port: %w", err)
-	}
-
-	svc, ok := opt.Service.(*options.GrpcServiceOptions)
-	if !ok {
-		return errors.New("unsupported ServiceOptions received on initialization")
 	}
 
 	s.errors = opt.Errors
@@ -102,11 +101,11 @@ func (s *Server) recoverFromGrpcPanic(ctx context.Context, p interface{}) error 
 	return s.errors.Internal(fmt.Errorf("%v", p)).Submit(ctx)
 }
 
-func (s *Server) validate(opt *plugin.ServiceOptions) error {
+func (s *Server) validate(opt *plugin.RuntimeOptions) error {
 	var (
 		validate = validator.New()
 		fields   = []interface{}{
-			opt.Service,
+			opt.ServiceOptions,
 			opt.Logger,
 			opt.Errors,
 			opt.Port,

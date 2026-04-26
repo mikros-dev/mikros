@@ -12,7 +12,7 @@
 //     float32/float64, time.Duration,
 //     and custom types implementing encoding.TextUnmarshaler.
 //
-// # Service-scoped precedence
+// # ServiceOptions-scoped precedence
 //
 // Load considers a service-specific variable first, then the global name.
 // For service "file" and default separator "__":

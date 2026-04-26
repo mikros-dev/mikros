@@ -11,7 +11,7 @@ import (
 )
 
 type baseConfig struct {
-	DeployEnv   definition.ServiceDeploy `env:"DEPLOY_ENV"`
+	DeployEnv   definition.DeploymentEnv `env:"DEPLOY_ENV"`
 	Region      string                   `env:"AWS_REGION"`
 	CI          bool                     `env:"CI,default_value=false"`
 	Port        int                      `env:"PORT,default_value=8080"`
@@ -55,7 +55,7 @@ func TestLoad(t *testing.T) {
 		err := Load(svc, &cfg)
 
 		a.Nil(err)
-		a.Equal(cfg.DeployEnv, definition.ServiceDeployTest)
+		a.Equal(cfg.DeployEnv, definition.DeploymentEnvTest)
 		a.Equal(cfg.Region, "us-east-1")
 		a.Equal(cfg.CI, true)
 		a.Equal(cfg.Port, 8081)

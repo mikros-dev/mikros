@@ -1,7 +1,7 @@
 package options
 
 import (
-	"github.com/mikros-dev/mikros/apis/services/http_spec"
+	"github.com/mikros-dev/mikros/apis/runtimes/http_spec"
 	"github.com/mikros-dev/mikros/components/definition"
 )
 
@@ -11,7 +11,7 @@ type HTTPSpecServiceOptions struct {
 }
 
 // Kind returns the type of service implemented by HTTPSpecServiceOptions as
-// definition.ServiceTypeHTTPSpec.
-func (h *HTTPSpecServiceOptions) Kind() definition.ServiceType {
-	return definition.ServiceTypeHTTPSpec
+// definition.RuntimeTypeHTTPSpec.
+func (h *HTTPSpecServiceOptions) Kind() definition.RuntimeType {
+	return definition.RuntimeTypeHTTPSpec
 }

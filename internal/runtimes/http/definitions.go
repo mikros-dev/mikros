@@ -38,7 +38,7 @@ func newDefinitions(definitions *definition.Definitions, opt *options.HTTPServic
 	}
 
 	// Apply file definitions
-	if currentDefs, ok := definitions.LoadService(definition.ServiceTypeHTTP); ok {
+	if currentDefs, ok := definitions.LoadRuntime(definition.RuntimeTypeHTTP); ok {
 		handleFileDefinitions(currentDefs, out)
 	}
 

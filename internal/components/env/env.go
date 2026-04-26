@@ -11,7 +11,7 @@ import (
 // variables are declared as structure members and are loaded directly, using
 // struct tags.
 type GlobalEnvs struct {
-	DeploymentEnv     definition.ServiceDeploy `env:"MIKROS_SERVICE_DEPLOY,default_value=local"`
+	DeploymentEnv     definition.DeploymentEnv `env:"MIKROS_SERVICE_DEPLOY,default_value=local"`
 	TrackerHeaderName string                   `env:"MIKROS_TRACKER_HEADER_NAME,default_value=X-Request-ID"`
 
 	// CI/CD settings
@@ -31,7 +31,7 @@ type GlobalEnvs struct {
 func (e *GlobalEnvs) postLoad() {
 	// Checks our real deployment environment
 	if e.isRunningTest() {
-		e.DeploymentEnv = definition.ServiceDeployTest
+		e.DeploymentEnv = definition.DeploymentEnvTest
 	}
 }
 

@@ -41,14 +41,14 @@ func (s *FeatureSet) InitializeAll(ctx context.Context, options *InitializeOptio
 		}
 
 		createOptions := &InitializeOptions{
-			Logger:          options.Logger,
-			Errors:          options.Errors,
-			Definitions:     options.Definitions,
-			Tags:            options.Tags,
-			ServiceContext:  options.ServiceContext,
-			Dependencies:    s.getDependentFeatures(feature.dependencies),
-			RunTimeFeatures: options.RunTimeFeatures,
-			Env:             options.Env,
+			Logger:         options.Logger,
+			Errors:         options.Errors,
+			Definitions:    options.Definitions,
+			Tags:           options.Tags,
+			ServiceContext: options.ServiceContext,
+			Dependencies:   s.getDependentFeatures(feature.dependencies),
+			FeatureInputs:  options.FeatureInputs,
+			Env:            options.Env,
 		}
 
 		if err := s.initializeFeature(ctx, feature.feature, allowOptions, createOptions); err != nil {

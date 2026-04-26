@@ -45,8 +45,8 @@ type HTTPServiceOptions struct {
 	Middlewares []func(handler http.Handler) http.Handler
 }
 
-// Kind returns the service type, which is always definition.ServiceTypeHTTP
+// Kind returns the runtime type, which is always definition.RuntimeTypeHTTP
 // for HTTPServiceOptions.
-func (h *HTTPServiceOptions) Kind() definition.ServiceType {
-	return definition.ServiceTypeHTTP
+func (h *HTTPServiceOptions) Kind() definition.RuntimeType {
+	return definition.RuntimeTypeHTTP
 }

@@ -8,7 +8,7 @@ import (
 // receive notifications when the service is initializing.
 type ServiceLifecycleStarter interface {
 	// OnStart is a method called right before the service enters its (infinite)
-	// execution mode, when Service.Start API is called. When called, all features
+	// execution mode, when ServiceOptions.Start API is called. When called, all features
 	// declared inside the main structure service are already initialized and
 	// available to use.
 	//

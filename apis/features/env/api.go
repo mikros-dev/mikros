@@ -23,7 +23,7 @@ type API interface {
 	GetBool(name string) (bool, error)
 
 	// DeploymentEnv returns the current service deployment environment.
-	DeploymentEnv() definition.ServiceDeploy
+	DeploymentEnv() definition.DeploymentEnv
 
 	// TrackerHeaderName returns the header name used to carry the service
 	// tracker ID in HTTP requests and requests between services.

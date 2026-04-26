@@ -5,13 +5,12 @@ import (
 	"errors"
 
 	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
-	"github.com/mikros-dev/mikros/apis/services/script"
+	"github.com/mikros-dev/mikros/apis/runtimes/script"
 	"github.com/mikros-dev/mikros/components/definition"
-	"github.com/mikros-dev/mikros/components/logger"
 	"github.com/mikros-dev/mikros/components/plugin"
 )
 
-// Server represents the script service server.
+// Server represents the script runtime server.
 type Server struct {
 	svc    script.API
 	ctx    context.Context
@@ -23,13 +22,13 @@ func New() *Server {
 	return &Server{}
 }
 
-// Name gives the implementation service name.
+// Name gives the implementation runtime name.
 func (s *Server) Name() string {
-	return definition.ServiceTypeScript.String()
+	return definition.RuntimeTypeScript.String()
 }
 
-// Initialize initializes the service internals.
-func (s *Server) Initialize(ctx context.Context, _ *plugin.ServiceOptions) error {
+// Initialize initializes the runtime internals.
+func (s *Server) Initialize(ctx context.Context, _ *plugin.RuntimeOptions) error {
 	cctx, cancel := context.WithCancel(ctx)
 
 	s.ctx = cctx
@@ -38,11 +37,9 @@ func (s *Server) Initialize(ctx context.Context, _ *plugin.ServiceOptions) error
 	return nil
 }
 
-// Info returns the service info to be logged.
+// Info returns the runtime info to be logged.
 func (s *Server) Info() []logger_api.Attribute {
-	return []logger_api.Attribute{
-		logger.String("service.mode", definition.ServiceTypeScript.String()),
-	}
+	return nil
 }
 
 // Run starts the script server.
@@ -52,7 +49,7 @@ func (s *Server) Run(_ context.Context, srv interface{}) error {
 		return errors.New("server object does not implement the script.API interface")
 	}
 
-	// Holds a reference to the service, so we can stop it later.
+	// Holds a reference to the runtime, so we can stop it later.
 	s.svc = svc
 
 	// And put it to run.
