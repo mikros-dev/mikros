@@ -15,11 +15,10 @@ func (s *service) loggingMiddleware(next http.Handler) http.Handler {
 		// Call the next handler
 		next.ServeHTTP(w, r)
 
-		// Log after response is written
+		// Log after the response is written
 		s.Logger.Info(r.Context(), "endpoint activated",
 			logger.String("method", r.Method),
 			logger.String("path", r.URL.Path),
-			logger.String("query", r.URL.RawQuery),
 			logger.Any("time", time.Since(start)))
 	})
 }

@@ -31,7 +31,8 @@ func New(features *plugin.FeatureSet) (*Tracker, error) {
 func (t *Tracker) Tracker() (behavior.Tracker, bool) {
 	if t.tracker != nil {
 		if api, ok := t.tracker.(plugin.FeatureInternalAPI); ok {
-			return api.FrameworkAPI().(behavior.Tracker), true
+			v, ok := api.FrameworkAPI().(behavior.Tracker)
+			return v, ok
 		}
 	}
 
