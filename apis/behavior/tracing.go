@@ -5,7 +5,7 @@ import (
 )
 
 // Tracer defines the contract for plugins that enable tracing and performance
-// measurement across all service types supported by mikros.
+// measurement across all runtime types supported by mikros.
 //
 // Implementations of this interface are responsible for collecting runtime
 // metrics and diagnostic data throughout the lifecycle of a service request

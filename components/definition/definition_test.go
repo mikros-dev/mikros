@@ -29,7 +29,7 @@ product = "SDS"
 			ErrorAssertion: a.NoError,
 		},
 		{
-			Title: "should not have script service type with other types",
+			Title: "should not have script runtime type with other types",
 			TomlDefinitions: `
 name = "example"
 types = ["grpc", "http-spec", "script"]
@@ -43,7 +43,7 @@ product = "SDS"
 			},
 		},
 		{
-			Title: "should not have duplicated service types",
+			Title: "should not have duplicated runtime types",
 			TomlDefinitions: `
 name = "example"
 types = ["grpc", "http-spec", "http-spec"]
@@ -53,11 +53,11 @@ product = "SDS"
 `,
 			ErrorAssertion: a.Error,
 			Expected: []string{
-				"failed on the 'no_duplicated_service' tag",
+				"failed on the 'no_duplicated_runtime' tag",
 			},
 		},
 		{
-			Title: "should fail without setting service type",
+			Title: "should fail without setting runtime type",
 			TomlDefinitions: `
 name = "example"
 version = "v1.0.0"
@@ -80,11 +80,11 @@ product = "SDS"
 `,
 			ErrorAssertion: a.Error,
 			Expected: []string{
-				"'Definitions.Types[1]' Error:Field validation for 'Types[1]' failed on the 'service_type' tag",
+				"'Definitions.Types[1]' Error:Field validation for 'Types[1]' failed on the 'runtime_type' tag",
 			},
 		},
 		{
-			Title: "should fail with unsupported service type",
+			Title: "should fail with unsupported runtime type",
 			TomlDefinitions: `
 name = "example"
 types = ["unsupported"]
@@ -93,7 +93,7 @@ language = "go"
 product = "SDS"
 `,
 			ErrorAssertion: a.Error,
-			Expected:       []string{"'Definitions.Types[0]' Error:Field validation for 'Types[0]' failed on the 'service_type' tag"},
+			Expected:       []string{"'Definitions.Types[0]' Error:Field validation for 'Types[0]' failed on the 'runtime_type' tag"},
 		},
 		{
 			Title: "should fail with invalid input",
@@ -113,7 +113,7 @@ ttl = -1
 emitted_events = [ "UNSUPPORTED_EVENT1", "UNSUPPORTED_EVENT2", "" ]
 `,
 			Expected: []string{
-				"'Definitions.Types[0]' Error:Field validation for 'Types[0]' failed on the 'service_type' tag\n",
+				"'Definitions.Types[0]' Error:Field validation for 'Types[0]' failed on the 'runtime_type' tag\n",
 				"'Definitions.Version' Error:Field validation for 'Version' failed on the 'version' tag",
 				"'Definitions.Language' Error:Field validation for 'Language' failed on the 'oneof' tag",
 				"'Definitions.Envs[0]' Error:Field validation for 'Envs[0]' failed on the 'uppercase' tag",
@@ -138,7 +138,7 @@ emitted_events = [ "VEHICLE_CREATED" ]
 			ErrorAssertion: a.Error,
 		},
 		{
-			Title: "succeed with service custom settings",
+			Title: "succeed with runtime custom settings",
 			TomlDefinitions: `
 name = "service_test"
 types = ["http-spec"]

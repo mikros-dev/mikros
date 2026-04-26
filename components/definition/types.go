@@ -4,107 +4,107 @@ import (
 	"strings"
 )
 
-type serviceTypeCtx struct{}
+type runtimeTypeCtx struct{}
 
-// ServiceType represents a supported type of service implemented internally.
-type ServiceType struct {
+// RuntimeType represents a supported type of runtime implemented by mikros.
+type RuntimeType struct {
 	name string
 }
 
-// Supported service types.
+// Supported runtime types.
 var (
-	ServiceTypeGRPC     = CreateServiceType("grpc")
-	ServiceTypeHTTPSpec = CreateServiceType("http-spec")
-	ServiceTypeHTTP     = CreateServiceType("http")
-	ServiceTypeWorker   = CreateServiceType("worker")
-	ServiceTypeScript   = CreateServiceType("script")
+	RuntimeTypeGRPC     = CreateRuntimeType("grpc")
+	RuntimeTypeHTTPSpec = CreateRuntimeType("http-spec")
+	RuntimeTypeHTTP   = CreateRuntimeType("http")
+	RuntimeTypeWorker = CreateRuntimeType("worker")
+	RuntimeTypeScript = CreateRuntimeType("script")
 )
 
 const (
 	unknownType = "unknown"
 )
 
-// CreateServiceType creates a new ServiceType with the specified name.
-func CreateServiceType(name string) ServiceType {
-	return ServiceType{name: name}
+// CreateRuntimeType creates a new RuntimeType with the specified name.
+func CreateRuntimeType(name string) RuntimeType {
+	return RuntimeType{name: name}
 }
 
-func (s ServiceType) String() string {
-	return s.name
+func (r RuntimeType) String() string {
+	return r.name
 }
 
-// ServiceDeploy represents the deployment environment of a service.
-type ServiceDeploy int32
+// DeploymentEnv represents the deployment environment of a service.
+type DeploymentEnv int32
 
 // Supported environments.
 const (
-	ServiceDeployUnknown ServiceDeploy = iota
-	ServiceDeployProduction
-	ServiceDeployTest
-	ServiceDeployDevelopment
-	ServiceDeployLocal
+	DeploymentEnvUnknown DeploymentEnv = iota
+	DeploymentEnvProduction
+	DeploymentEnvTest
+	DeploymentEnvDevelopment
+	DeploymentEnvLocal
 )
 
-func (e *ServiceDeploy) String() string {
-	switch *e {
-	case ServiceDeployProduction:
+func (d *DeploymentEnv) String() string {
+	switch *d {
+	case DeploymentEnvProduction:
 		return "prod"
-	case ServiceDeployTest:
+	case DeploymentEnvTest:
 		return "test"
-	case ServiceDeployDevelopment:
+	case DeploymentEnvDevelopment:
 		return "dev"
-	case ServiceDeployLocal:
+	case DeploymentEnvLocal:
 		return "local"
 	default:
 		return unknownType
 	}
 }
 
-// FromString converts a string input to its corresponding ServiceDeploy
+// FromString converts a string input to its corresponding DeploymentEnv
 // enumeration value.
-func (e *ServiceDeploy) FromString(in string) ServiceDeploy {
+func (d *DeploymentEnv) FromString(in string) DeploymentEnv {
 	switch in {
 	case "prod":
-		return ServiceDeployProduction
+		return DeploymentEnvProduction
 	case "test":
-		return ServiceDeployTest
+		return DeploymentEnvTest
 	case "dev":
-		return ServiceDeployDevelopment
+		return DeploymentEnvDevelopment
 	case "local":
-		return ServiceDeployLocal
+		return DeploymentEnvLocal
 	}
 
-	return ServiceDeployUnknown
+	return DeploymentEnvUnknown
 
 }
 
-// UnmarshalText converts a text input to a ServiceDeploy.
-func (e *ServiceDeploy) UnmarshalText(text []byte) error {
+// UnmarshalText converts a text input to a DeploymentEnv.
+func (d *DeploymentEnv) UnmarshalText(text []byte) error {
 	switch strings.ToLower(string(text)) {
 	case "prod":
-		*e = ServiceDeployProduction
+		*d = DeploymentEnvProduction
 	case "test":
-		*e = ServiceDeployTest
+		*d = DeploymentEnvTest
 	case "dev":
-		*e = ServiceDeployDevelopment
+		*d = DeploymentEnvDevelopment
 	case "local":
-		*e = ServiceDeployLocal
+		*d = DeploymentEnvLocal
 	default:
-		*e = ServiceDeployUnknown
+		*d = DeploymentEnvUnknown
 	}
 
 	return nil
 }
 
-// SupportedServiceTypes gives a slice of all supported service types.
-func SupportedServiceTypes() []string {
+// SupportedRuntimeTypes gives a slice of all supported runtime types.
+func SupportedRuntimeTypes() []string {
 	var s []string
-	types := []ServiceType{
-		ServiceTypeGRPC,
-		ServiceTypeHTTPSpec,
-		ServiceTypeHTTP,
-		ServiceTypeWorker,
-		ServiceTypeScript,
+	types := []RuntimeType{
+		RuntimeTypeGRPC,
+		RuntimeTypeHTTPSpec,
+		RuntimeTypeHTTP,
+		RuntimeTypeWorker,
+		RuntimeTypeScript,
 	}
 
 	for _, t := range types {

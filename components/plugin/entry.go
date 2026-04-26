@@ -15,7 +15,7 @@ import (
 // feature if used.
 //
 // Also, if a feature uses it, it already receives a logger.API interface
-// for it for free and error methods to return a proper error for services.
+// for it for free and error methods to return a proper error for runtimes.
 type Entry struct {
 	featureEnabled bool
 	featureName    string
@@ -75,7 +75,7 @@ func (e *Entry) Error(in interface{}) error {
 }
 
 // WrapError is a helper API to create an error value from another error using
-// the error standard of services APIs.
+// the error standard of runtimes APIs.
 //
 // Usually, this method should be used when a public feature API returns an
 // error.

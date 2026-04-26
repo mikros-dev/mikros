@@ -13,7 +13,7 @@ import (
 
 	"github.com/mikros-dev/mikros/apis/behavior"
 	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
-	http_api "github.com/mikros-dev/mikros/apis/services/http"
+	http_api "github.com/mikros-dev/mikros/apis/runtimes/http"
 	"github.com/mikros-dev/mikros/components/definition"
 	"github.com/mikros-dev/mikros/components/logger"
 	"github.com/mikros-dev/mikros/components/options"
@@ -23,7 +23,7 @@ import (
 
 type middleware = func(http.Handler) http.Handler
 
-// Server represents the HTTP service server.
+// Server represents the HTTP runtime server.
 type Server struct {
 	port     service.ServerPort
 	listener net.Listener
@@ -36,22 +36,21 @@ func New() *Server {
 	return &Server{}
 }
 
-// Name gives the implementation service name.
+// Name gives the implementation runtime name.
 func (s *Server) Name() string {
-	return definition.ServiceTypeHTTP.String()
+	return definition.RuntimeTypeHTTP.String()
 }
 
-// Info returns service fields to be logged.
+// Info returns runtime fields to be logged.
 func (s *Server) Info() []logger_api.Attribute {
 	return []logger_api.Attribute{
-		logger.String("service.address", fmt.Sprintf(":%v", s.port.Int32())),
-		logger.String("service.mode", definition.ServiceTypeHTTP.String()),
-		logger.String("service.http_auth", fmt.Sprintf("%t", !s.defs.DisableAuth)),
+		logger.String("http.listenin_address", fmt.Sprintf(":%v", s.port.Int32())),
+		logger.String("http.auth_enabled", fmt.Sprintf("%t", !s.defs.DisableAuth)),
 	}
 }
 
-// Initialize initializes the service internals.
-func (s *Server) Initialize(ctx context.Context, opt *plugin.ServiceOptions) error {
+// Initialize initializes the runtime internals.
+func (s *Server) Initialize(ctx context.Context, opt *plugin.RuntimeOptions) error {
 	provider, ok := opt.ServiceHandler.(http_api.API)
 	if !ok {
 		return errors.New("invalid service handler, it does not implement http_api.API")
@@ -62,12 +61,12 @@ func (s *Server) Initialize(ctx context.Context, opt *plugin.ServiceOptions) err
 		return err
 	}
 
-	svcOptions, ok := opt.Service.(*options.HTTPServiceOptions)
+	svcOptions, ok := opt.ServiceOptions.(*options.HTTPServiceOptions)
 	if !ok {
-		return errors.New("unsupported ServiceOptions received on initialization")
+		return errors.New("unsupported RuntimeOptions received on initialization")
 	}
 	if svcOptions == nil {
-		return errors.New("invalid ServiceOptions received on initialization")
+		return errors.New("invalid RuntimeOptions received on initialization")
 	}
 
 	var (
@@ -91,13 +90,13 @@ func (s *Server) Initialize(ctx context.Context, opt *plugin.ServiceOptions) err
 		h = chain[i](h)
 	}
 
-	// Create the listener for the service server.
+	// Create the listener for the runtime server.
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", opt.Port))
 	if err != nil {
 		return fmt.Errorf("could not listen to service port: %w", err)
 	}
 
-	// Initialize the service
+	// Initialize the runtime
 	s.defs = defs
 	s.port = opt.Port
 	s.listener = listener
@@ -112,7 +111,7 @@ func (s *Server) Initialize(ctx context.Context, opt *plugin.ServiceOptions) err
 	return nil
 }
 
-func buildCoreMiddlewares(ctx context.Context, opt *plugin.ServiceOptions, defs *Definitions) ([]middleware, error) {
+func buildCoreMiddlewares(ctx context.Context, opt *plugin.RuntimeOptions, defs *Definitions) ([]middleware, error) {
 	var chain []middleware
 
 	if c := getCors(opt); c != nil {
@@ -256,7 +255,7 @@ func handlePreflight(w http.ResponseWriter, r *http.Request, c corsConfig, cfg c
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func requireHTTPAuth(opt *plugin.ServiceOptions) (behavior.HTTPAuthenticator, error) {
+func requireHTTPAuth(opt *plugin.RuntimeOptions) (behavior.HTTPAuthenticator, error) {
 	c, err := opt.Features.Feature(options.HTTPAuthFeatureName)
 	if err != nil {
 		return nil, errors.New("http auth is enabled but feature is not available")
@@ -275,7 +274,7 @@ func requireHTTPAuth(opt *plugin.ServiceOptions) (behavior.HTTPAuthenticator, er
 	return auth, nil
 }
 
-func getCors(opt *plugin.ServiceOptions) behavior.CorsHandler {
+func getCors(opt *plugin.RuntimeOptions) behavior.CorsHandler {
 	f, err := opt.Features.Feature(options.HTTPCorsFeatureName)
 	if err != nil {
 		return nil
@@ -294,7 +293,7 @@ func getCors(opt *plugin.ServiceOptions) behavior.CorsHandler {
 	return c
 }
 
-// Run runs the service.
+// Run runs the runtime.
 func (s *Server) Run(_ context.Context, _ interface{}) error {
 	if err := s.server.Serve(s.listener); err != nil {
 		if errors.Is(err, http.ErrServerClosed) {
@@ -307,7 +306,7 @@ func (s *Server) Run(_ context.Context, _ interface{}) error {
 	return nil
 }
 
-// Stop stops the service.
+// Stop stops the runtime.
 func (s *Server) Stop(ctx context.Context) error {
 	defer func(listener net.Listener) {
 		_ = listener.Close()

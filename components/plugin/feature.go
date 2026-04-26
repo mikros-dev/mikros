@@ -86,7 +86,7 @@ type FeatureSettings interface {
 }
 
 // FeatureExternalAPI is a behavior that every external feature must have so that
-// their API can be used from services. This is specific for features that support
+// their API can be used from runtimes. This is specific for features that support
 // test mocking.
 type FeatureExternalAPI interface {
 	ServiceAPI() interface{}
@@ -118,19 +118,19 @@ type FeatureTester interface {
 // CanBeInitializedOptions gathers all information passed to the CanBeInitialized
 // method of a Feature interface.
 type CanBeInitializedOptions struct {
-	DeploymentEnv definition.ServiceDeploy
+	DeploymentEnv definition.DeploymentEnv
 	Definitions   *definition.Definitions
 }
 
 // InitializeOptions gathers all information passed to the Initialize method of
 // a Feature interface, allowing a feature to be properly initialized.
 type InitializeOptions struct {
-	Logger          logger_api.API
-	Errors          errors_api.ErrorAPI
-	Env             env_api.API
-	Definitions     *definition.Definitions
-	Tags            map[string]string
-	ServiceContext  *mcontext.ServiceContext
-	Dependencies    map[string]Feature
-	RunTimeFeatures map[string]interface{}
+	Logger         logger_api.API
+	Errors         errors_api.ErrorAPI
+	Env            env_api.API
+	Definitions    *definition.Definitions
+	Tags           map[string]string
+	ServiceContext *mcontext.ServiceContext
+	Dependencies   map[string]Feature
+	FeatureInputs  map[string]interface{}
 }

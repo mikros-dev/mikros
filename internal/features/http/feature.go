@@ -23,7 +23,7 @@ func New() *Client {
 
 // CanBeInitialized checks if the feature can be initialized.
 func (c *Client) CanBeInitialized(options *plugin.CanBeInitializedOptions) bool {
-	_, ok := options.Definitions.ServiceTypes()[definition.ServiceTypeHTTPSpec]
+	_, ok := options.Definitions.RuntimeTypes()[definition.RuntimeTypeHTTPSpec]
 	return ok
 }
 

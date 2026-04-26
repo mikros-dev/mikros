@@ -10,7 +10,7 @@ type API interface {
 	// Run must be the service function where things happen. It is executed
 	// only once and the service terminates.
 	//
-	// Services should avoid blocking this function since there are other
+	// Runtimes should avoid blocking this function since there are other
 	// services for this purpose.
 	Run(ctx context.Context) error
 

@@ -13,7 +13,7 @@ const (
 	EnvFeatureName        = FeatureNamePrefix + "env"
 
 	// These HTTP features plugins don't exist here, but to be supported by
-	// internal services, they must have these names.
+	// internal runtimes, they must have these names.
 
 	HTTPCorsFeatureName        = FeatureNamePrefix + "http_cors"
 	HTTPSpecAuthFeatureName    = FeatureNamePrefix + "http_spec_auth"

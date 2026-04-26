@@ -16,10 +16,10 @@ type NewServiceOptions struct {
 	// as a key here.
 	Service map[string]ServiceOptions `validate:"required"`
 
-	// RunTimeFeatures must hold everything that will only be available
+	// FeatureInputs must hold everything that will only be available
 	// when the service executes. The key here should be the same as the
 	// feature where the options will be sent.
-	RunTimeFeatures map[string]interface{}
+	FeatureInputs map[string]interface{}
 
 	// GrpcClients should have every gRPC dependency that the service
 	// may have.
@@ -29,7 +29,7 @@ type NewServiceOptions struct {
 // ServiceOptions is an interface that all services options structures must
 // implement.
 type ServiceOptions interface {
-	Kind() definition.ServiceType
+	Kind() definition.RuntimeType
 }
 
 // Validate validates if a NewServiceOptions object contains the required information

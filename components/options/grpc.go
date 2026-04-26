@@ -10,18 +10,18 @@ import (
 	"github.com/mikros-dev/mikros/components/service"
 )
 
-// GrpcServiceOptions gathers options to initialize a gRPC service.
+// GrpcServiceOptions gathers options to initialize a gRPC runtime
 type GrpcServiceOptions struct {
 	ProtoServiceDescription *grpc.ServiceDesc
 }
 
-// Kind returns the type of service as definition.ServiceTypeGRPC.
-func (g *GrpcServiceOptions) Kind() definition.ServiceType {
-	return definition.ServiceTypeGRPC
+// Kind returns the runtime type as definition.RuntimeTypeGRPC.
+func (g *GrpcServiceOptions) Kind() definition.RuntimeType {
+	return definition.RuntimeTypeGRPC
 }
 
 // GrpcClient is a structure to set information about a gRPC client that will
-// be coupled with a service.
+// be coupled with another service.
 type GrpcClient struct {
 	// ServiceName should be the service name.
 	ServiceName service.Name

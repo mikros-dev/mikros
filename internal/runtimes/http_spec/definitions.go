@@ -1,4 +1,3 @@
-//revive:disable:var-naming
 package http_spec
 
 import (
@@ -9,7 +8,7 @@ import (
 	"github.com/mikros-dev/mikros/components/definition"
 )
 
-// Definitions contains configuration settings for the HTTP service behavior.
+// Definitions contains configuration settings for the HTTP runtime behavior.
 //
 //revive:disable:line-length-limit
 type Definitions struct {
@@ -21,11 +20,11 @@ type Definitions struct {
 //revive:enable:line-length-limit
 
 func newDefinitions(definitions *definition.Definitions) *Definitions {
-	if currentDefs, ok := definitions.LoadService(definition.ServiceTypeHTTPSpec); ok {
+	if currentDefs, ok := definitions.LoadRuntime(definition.RuntimeTypeHTTPSpec); ok {
 		if b, err := json.Marshal(currentDefs); err == nil {
-			var serviceDefs Definitions
-			if err := json.Unmarshal(b, &serviceDefs); err == nil {
-				return &serviceDefs
+			var runtimeDefs Definitions
+			if err := json.Unmarshal(b, &runtimeDefs); err == nil {
+				return &runtimeDefs
 			}
 		}
 	}

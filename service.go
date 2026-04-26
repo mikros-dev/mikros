@@ -32,24 +32,24 @@ import (
 	"github.com/mikros-dev/mikros/internal/components/tracker"
 	"github.com/mikros-dev/mikros/internal/components/validations"
 	"github.com/mikros-dev/mikros/internal/features"
-	"github.com/mikros-dev/mikros/internal/services"
+	"github.com/mikros-dev/mikros/internal/runtimes"
 )
 
 // Service is the object that represents a service application.
 type Service struct {
-	serviceOptions  map[string]options.ServiceOptions
-	runtimeFeatures map[string]interface{}
-	errors          *merrors.Factory
-	logger          *mlogger.Logger
-	ctx             *mcontext.ServiceContext
-	servers         []plugin.Service
-	clients         map[string]*options.GrpcClient
-	definitions     *definition.Definitions
-	envs            *env.ServiceEnvs
-	features        *plugin.FeatureSet
-	services        *plugin.ServiceSet
-	tracker         *tracker.Tracker
-	grpcConns       []*grpc.ClientConn
+	serviceOptions     map[string]options.ServiceOptions
+	featureInputs      map[string]interface{}
+	errors             *merrors.Factory
+	logger             *mlogger.Logger
+	ctx                *mcontext.ServiceContext
+	runtimes           []plugin.Runtime
+	clients            map[string]*options.GrpcClient
+	definitions        *definition.Definitions
+	envs               *env.ServiceEnvs
+	registeredFeatures *plugin.FeatureSet
+	registeredRuntimes *plugin.RuntimeSet
+	tracker            *tracker.Tracker
+	grpcConns          []*grpc.ClientConn
 }
 
 // ServiceName is the way to retrieve a service name from a string.
@@ -104,23 +104,23 @@ func initService(opt *options.NewServiceOptions) (*Service, error) {
 	}
 
 	return &Service{
-		serviceOptions:  opt.Service,
-		runtimeFeatures: opt.RunTimeFeatures,
-		errors:          initServiceErrors(defs, serviceLogger),
-		logger:          serviceLogger,
-		ctx:             ctx,
-		clients:         opt.GrpcClients,
-		definitions:     defs,
-		envs:            envs,
-		features:        features.Features(),
-		services:        services.Services(),
+		serviceOptions:     opt.Service,
+		featureInputs:      opt.FeatureInputs,
+		errors:             initServiceErrors(defs, serviceLogger),
+		logger:             serviceLogger,
+		ctx:                ctx,
+		clients:            opt.GrpcClients,
+		definitions:        defs,
+		envs:               envs,
+		registeredFeatures: features.Features(),
+		registeredRuntimes: runtimes.Runtimes(),
 	}, nil
 }
 
 func initLogger(defs *definition.Definitions, envs *env.ServiceEnvs) (*mlogger.Logger, error) {
 	// By default, we always discard log messages when running unit tests,
 	// but this behavior can be changed using service definitions.
-	discardMessages := envs.DeploymentEnv() == definition.ServiceDeployTest
+	discardMessages := envs.DeploymentEnv() == definition.DeploymentEnvTest
 	if discardMessages && defs.Tests.DiscardLogMessages != nil {
 		discardMessages = *defs.Tests.DiscardLogMessages
 	}
@@ -128,7 +128,7 @@ func initLogger(defs *definition.Definitions, envs *env.ServiceEnvs) (*mlogger.L
 	deploy := envs.DeploymentEnv()
 	attributes := map[string]string{
 		"service.name":    defs.ServiceName().String(),
-		"service.type":    defs.ServiceTypesAsString(),
+		"service.type":    defs.RuntimeTypesAsString(),
 		"service.version": defs.Version,
 		"service.env":     deploy.String(),
 		"service.product": defs.Product,
@@ -160,21 +160,21 @@ func initServiceErrors(defs *definition.Definitions, log logger_api.API) *merror
 	})
 }
 
-// WithExternalServices allows a service to add external service implementations
+// WithExternalRuntimes allows a service to add external runtime 1implementations
 // into it.
-func (s *Service) WithExternalServices(services *plugin.ServiceSet) *Service {
-	s.services.Append(services)
-	for name := range services.Services() {
-		s.definitions.AddSupportedServiceType(name)
+func (s *Service) WithExternalRuntimes(runtimes *plugin.RuntimeSet) *Service {
+	s.registeredRuntimes.Append(runtimes)
+	for name := range runtimes.Runtimes() {
+		s.definitions.AddSupportedRuntimeType(name)
 	}
 
 	return s
 }
 
-// WithExternalFeatures allows a service to add external features into it, so they
+// WithExternalFeatures allows a service to add external registeredFeatures into it, so they
 // can be used from it.
 func (s *Service) WithExternalFeatures(features *plugin.FeatureSet) *Service {
-	s.features.Append(features)
+	s.registeredFeatures.Append(features)
 	return s
 }
 
@@ -192,7 +192,7 @@ func (s *Service) Start(srv interface{}) {
 
 	// If we're running tests, we end the method here to avoid putting the
 	// service in execution.
-	if s.envs.DeploymentEnv() == definition.ServiceDeployTest {
+	if s.envs.DeploymentEnv() == definition.DeploymentEnvTest {
 		return
 	}
 
@@ -231,7 +231,7 @@ func (s *Service) bootstrap(ctx context.Context, srv interface{}) *merrors.Abort
 // tagged as "definitions".
 func (s *Service) postProcessDefinitions(srv interface{}) error {
 	// Load all feature definitions.
-	iter := s.features.Iterator()
+	iter := s.registeredFeatures.Iterator()
 	for p, next := iter.Next(); next; p, next = iter.Next() {
 		if cfg, ok := p.(plugin.FeatureSettings); ok {
 			defs, err := cfg.Definitions(s.definitions.Path())
@@ -244,14 +244,14 @@ func (s *Service) postProcessDefinitions(srv interface{}) error {
 	}
 
 	// Load definitions from all service TOML types and let them available.
-	for _, svc := range s.services.Services() {
-		if d, ok := svc.(plugin.ServiceSettings); ok {
+	for _, svc := range s.registeredRuntimes.Runtimes() {
+		if d, ok := svc.(plugin.RuntimeSettings); ok {
 			defs, err := d.Definitions(s.definitions.Path())
 			if err != nil {
 				return err
 			}
 
-			s.definitions.AddExternalServiceDefinitions(svc.Name(), defs)
+			s.definitions.AddExternalRuntimeDefinitions(svc.Name(), defs)
 		}
 	}
 
@@ -264,14 +264,14 @@ func (s *Service) postProcessDefinitions(srv interface{}) error {
 	return s.definitions.Validate()
 }
 
-// startFeatures starts all registered features and everything that are related
+// startFeatures starts all registered registeredFeatures and everything that are related
 // to them.
 func (s *Service) startFeatures(ctx context.Context, srv interface{}) *merrors.AbortError {
-	s.logger.Info(ctx, "starting dependent services")
+	s.logger.Info(ctx, "starting dependent registeredRuntimes")
 
-	// Initialize features
+	// Initialize registeredFeatures
 	if err := s.initializeFeatures(ctx, srv); err != nil {
-		return merrors.NewAbortError("could not initialize features", err)
+		return merrors.NewAbortError("could not initialize registeredFeatures", err)
 	}
 
 	return nil
@@ -279,26 +279,26 @@ func (s *Service) startFeatures(ctx context.Context, srv interface{}) *merrors.A
 
 func (s *Service) initializeFeatures(ctx context.Context, srv interface{}) error {
 	initializeOptions := &plugin.InitializeOptions{
-		Logger:          s.logger,
-		Errors:          s.errors,
-		Definitions:     s.definitions,
-		Tags:            s.tags(),
-		ServiceContext:  s.ctx,
-		RunTimeFeatures: s.runtimeFeatures,
-		Env:             s.envs,
+		Logger:         s.logger,
+		Errors:         s.errors,
+		Definitions:    s.definitions,
+		Tags:           s.tags(),
+		ServiceContext: s.ctx,
+		FeatureInputs:  s.featureInputs,
+		Env:            s.envs,
 	}
 
-	// Initialize registered features
-	if err := s.features.InitializeAll(ctx, initializeOptions); err != nil {
+	// Initialize registered registeredFeatures
+	if err := s.registeredFeatures.InitializeAll(ctx, initializeOptions); err != nil {
 		return err
 	}
 
 	// And execute their Start API
-	if err := s.features.StartAll(ctx, srv); err != nil {
+	if err := s.registeredFeatures.StartAll(ctx, srv); err != nil {
 		return err
 	}
 
-	// Load tagged features into the service struct
+	// Load tagged registeredFeatures into the service struct
 	return s.loadTaggedFeatures(ctx, srv)
 }
 
@@ -328,7 +328,7 @@ func (s *Service) loadTaggedFeatures(ctx context.Context, srv interface{}) error
 }
 
 func (s *Service) startTracker() error {
-	t, err := tracker.New(s.features)
+	t, err := tracker.New(s.registeredFeatures)
 	if err != nil {
 		return err
 	}
@@ -338,7 +338,7 @@ func (s *Service) startTracker() error {
 }
 
 func (s *Service) setupLoggerExtractor() error {
-	e, err := s.features.Feature(options.LoggerExtractorFeatureName)
+	e, err := s.registeredFeatures.Feature(options.LoggerExtractorFeatureName)
 	if err != nil && !strings.Contains(err.Error(), "could not find feature") {
 		return err
 	}
@@ -377,68 +377,68 @@ func (s *Service) initializeServiceInternals(ctx context.Context, srv interface{
 		return merrors.NewAbortError("failed while running lifecycle.OnStart", err)
 	}
 
-	if s.envs.DeploymentEnv() != definition.ServiceDeployTest {
+	if s.envs.DeploymentEnv() != definition.DeploymentEnvTest {
 		if err := validations.EnsureValuesAreInitialized(srv); err != nil {
 			return merrors.NewAbortError("service server object is not properly initialized", err)
 		}
 	}
 
-	// Initialize all registered service types after everything we need to
+	// Initialize all registered runtime types after everything we need to
 	// handle with the service structure is already completed.
-	if err := s.initializeRegisteredServices(ctx, srv); err != nil {
-		return merrors.NewAbortError("could not initialize internal services", err)
+	if err := s.initializeRegisteredRuntimes(ctx, srv); err != nil {
+		return merrors.NewAbortError("could not initialize runtime", err)
 	}
 
 	return nil
 }
 
-func (s *Service) initializeRegisteredServices(ctx context.Context, srv interface{}) error {
+func (s *Service) initializeRegisteredRuntimes(ctx context.Context, srv interface{}) error {
 	// Creates the service
-	for serviceType, servicePort := range s.definitions.ServiceTypes() {
-		svc, ok := s.services.Services()[serviceType.String()]
+	for runtimeType, port := range s.definitions.RuntimeTypes() {
+		runtime, ok := s.registeredRuntimes.Runtimes()[runtimeType.String()]
 		if !ok {
-			return fmt.Errorf("could not find service implementation for '%v", serviceType.String())
+			return fmt.Errorf("could not find runtime implementation for '%v", runtimeType.String())
 		}
 
-		opt, ok := s.serviceOptions[serviceType.String()]
+		opt, ok := s.serviceOptions[runtimeType.String()]
 		if !ok {
-			return fmt.Errorf("could not find service type '%v' options in initialization", serviceType.String())
+			return fmt.Errorf("could not find runtime type '%v' options in initialization", runtimeType.String())
 		}
 
-		if err := svc.Initialize(ctx, &plugin.ServiceOptions{
-			Port:           s.getServicePort(servicePort, serviceType.String()),
-			Type:           serviceType,
+		if err := runtime.Initialize(ctx, &plugin.RuntimeOptions{
+			Port:           s.getRuntimePort(port, runtimeType.String()),
+			Type:           runtimeType,
 			Name:           s.definitions.ServiceName(),
 			Product:        s.definitions.Product,
 			Logger:         s.logger,
 			Errors:         s.errors,
 			ServiceContext: s.ctx,
 			Tags:           s.tags(),
-			Service:        opt,
+			ServiceOptions: opt,
 			Definitions:    s.definitions,
-			Features:       s.features,
+			Features:       s.registeredFeatures,
 			ServiceHandler: srv,
 			Env:            s.envs,
 		}); err != nil {
 			return err
 		}
 
-		// Saves only the initialized services
-		s.servers = append(s.servers, svc)
+		// Saves only the initialized registeredRuntimes
+		s.runtimes = append(s.runtimes, runtime)
 	}
 
 	return nil
 }
 
-func (s *Service) getServicePort(port service.ServerPort, serviceType string) service.ServerPort {
+func (s *Service) getRuntimePort(port service.ServerPort, runtimeType string) service.ServerPort {
 	// Use default port values in case no port was set in the service.toml
 	if port == 0 {
-		if serviceType == definition.ServiceTypeGRPC.String() {
+		if runtimeType == definition.RuntimeTypeGRPC.String() {
 			return service.ServerPort(s.envs.GrpcPort())
 		}
 
-		if serviceType == definition.ServiceTypeHTTPSpec.String() ||
-			serviceType == definition.ServiceTypeHTTP.String() {
+		if runtimeType == definition.RuntimeTypeHTTPSpec.String() ||
+			runtimeType == definition.RuntimeTypeHTTP.String() {
 			return service.ServerPort(s.envs.HTTPPort())
 		}
 	}
@@ -497,12 +497,12 @@ func (s *Service) setFieldFromEnv(field reflect.StructField, fieldValue reflect.
 	return nil
 }
 
-// coupleClients establishes connections with all client services that a service
+// coupleClients establishes connections with all client registeredRuntimes that a service
 // has as dependency.
 func (s *Service) coupleClients(srv interface{}) error {
 	// If the service does not have dependencies, or we are running tests,
 	// don't need to continue.
-	if len(s.clients) == 0 || s.envs.DeploymentEnv() == definition.ServiceDeployTest {
+	if len(s.clients) == 0 || s.envs.DeploymentEnv() == definition.DeploymentEnvTest {
 		return nil
 	}
 
@@ -577,7 +577,7 @@ func (s *Service) createGrpcCoupledClientOptions(client *options.GrpcClient) *mg
 func (s *Service) printServiceResources(ctx context.Context) {
 	var (
 		fields []logger_api.Attribute
-		iter   = s.features.Iterator()
+		iter   = s.registeredFeatures.Iterator()
 	)
 
 	for f, next := iter.Next(); next; f, next = iter.Next() {
@@ -596,18 +596,19 @@ func (s *Service) run(ctx context.Context, srv interface{}) {
 
 	// In case we're a script service, only execute its function and terminate
 	// the execution.
-	if s.definitions.IsServiceType(definition.ServiceTypeScript) {
-		svc := s.servers[0]
-		s.logger.Info(ctx, "service is running", svc.Info()...)
+	if s.definitions.IsRuntimeType(definition.RuntimeTypeScript) {
+		svc := s.runtimes[0]
+		attrs := append(svc.Info(), logger.String("runtime.mode", svc.Name()))
+		s.logger.Info(ctx, "runtime is running", attrs...)
 
 		if err := svc.Run(ctx, srv); err != nil {
-			s.fatalAbort(ctx, merrors.NewAbortError("could not execute service", err))
+			s.fatalAbort(ctx, merrors.NewAbortError("could not execute runtime", err))
 		}
 
 		return
 	}
 
-	// Otherwise, initialize all service types and put them to run.
+	// Otherwise, initialize all runtime types and put them to run.
 
 	// Create channels for finishing the service and bind the signal that
 	// finishes it.
@@ -615,9 +616,10 @@ func (s *Service) run(ctx context.Context, srv interface{}) {
 	stopChan := make(chan os.Signal, 1)
 	signal.Notify(stopChan, syscall.SIGTERM, syscall.SIGINT)
 
-	for _, svc := range s.servers {
-		go func(service plugin.Service) {
-			s.logger.Info(ctx, "service is running", service.Info()...)
+	for _, svc := range s.runtimes {
+		go func(service plugin.Runtime) {
+			attrs := append(svc.Info(), logger.String("runtime.mode", svc.Name()))
+			s.logger.Info(ctx, "runtime is running", attrs...)
 			if err := service.Run(ctx, srv); err != nil {
 				errChan <- err
 			}
@@ -627,7 +629,7 @@ func (s *Service) run(ctx context.Context, srv interface{}) {
 	// Blocks the call
 	select {
 	case err := <-errChan:
-		s.fatalAbort(ctx, merrors.NewAbortError("could not execute service", err))
+		s.fatalAbort(ctx, merrors.NewAbortError("could not execute runtime", err))
 
 	case <-stopChan:
 	}
@@ -643,10 +645,10 @@ func (s *Service) stopService(ctx context.Context) {
 	}
 
 	if err := s.stopDependentServices(ctx); err != nil {
-		s.logger.Error(ctx, "could not stop other running services", logger.Error(err))
+		s.logger.Error(ctx, "could not stop other running registeredRuntimes", logger.Error(err))
 	}
 
-	for _, svc := range s.servers {
+	for _, svc := range s.runtimes {
 		if err := svc.Stop(ctx); err != nil {
 			s.logger.Error(ctx, "could not stop service server",
 				append([]logger_api.Attribute{logger.Error(err)}, svc.Info()...)...)
@@ -656,11 +658,11 @@ func (s *Service) stopService(ctx context.Context) {
 	s.logger.Info(ctx, "service stopped")
 }
 
-// stopDependentServices stops other services that are running along with the
+// stopDependentServices stops other registeredRuntimes that are running along with the
 // main service.
 func (s *Service) stopDependentServices(ctx context.Context) error {
-	s.logger.Info(ctx, "stopping dependent services")
-	return s.features.CleanupAll(ctx)
+	s.logger.Info(ctx, "stopping dependent registeredRuntimes")
+	return s.registeredFeatures.CleanupAll(ctx)
 }
 
 // Logger gives access to the logger API from inside a service context.
@@ -681,7 +683,7 @@ func (s *Service) Errors() errors_api.ErrorAPI {
 	return s.errors
 }
 
-// Abort is a helper method to abort services in the right way when external
+// Abort is a helper method to abort registeredRuntimes in the right way when external
 // initialization is needed.
 func (s *Service) Abort(message string, err error) {
 	s.fatalAbort(context.TODO(), merrors.NewAbortError(message, err))
@@ -707,23 +709,23 @@ func (s *Service) ServiceName() string {
 // Deprecated: This method is deprecated and should not be used anymore. To know
 // this information, one must declare an internal service feature for the
 // environment variables and initialize it using struct tags.
-func (s *Service) DeployEnvironment() definition.ServiceDeploy {
+func (s *Service) DeployEnvironment() definition.DeploymentEnv {
 	return s.envs.DeploymentEnv()
 }
 
 // tags function gives a map of current service tags to be used with external
 // resources.
 func (s *Service) tags() map[string]string {
-	serviceType := s.definitions.ServiceTypesAsString()
-	if strings.Contains(serviceType, ",") {
+	runtimeTypes := s.definitions.RuntimeTypesAsString()
+	if strings.Contains(runtimeTypes, ",") {
 		// SQS tag does not accept commas, just Unicode letters, digits,
 		// whitespace, or one of these symbols: _ . : / = + - @
-		serviceType = "hybrid"
+		runtimeTypes = "hybrid"
 	}
 
 	return map[string]string{
 		"service.name":    s.definitions.ServiceName().String(),
-		"service.type":    serviceType,
+		"service.type":    runtimeTypes,
 		"service.version": s.definitions.Version,
 		"service.product": s.definitions.Product,
 	}
@@ -737,7 +739,7 @@ func (s *Service) Feature(ctx context.Context, target interface{}) error {
 			Submit(ctx)
 	}
 
-	it := s.features.Iterator()
+	it := s.registeredFeatures.Iterator()
 	for {
 		feature, next := it.Next()
 		if !next {
@@ -778,7 +780,7 @@ func (s *Service) Env(name string) string {
 	v, ok := s.envs.DefinedEnv(name)
 	if !ok {
 		// This should not happen because all envs were already loaded
-		// when Service was created.
+		// when Runtime was created.
 		s.logger.Fatal(context.TODO(), fmt.Sprintf("environment variable '%s' not found", name))
 	}
 
