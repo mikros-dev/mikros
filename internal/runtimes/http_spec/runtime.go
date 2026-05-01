@@ -15,8 +15,8 @@ import (
 	"github.com/lab259/cors"
 	"github.com/valyala/fasthttp"
 
-	"github.com/mikros-dev/mikros/apis/behavior"
 	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
+	"github.com/mikros-dev/mikros/apis/integrations"
 	"github.com/mikros-dev/mikros/components/definition"
 	"github.com/mikros-dev/mikros/components/logger"
 	"github.com/mikros-dev/mikros/components/options"
@@ -32,9 +32,9 @@ type Server struct {
 	server            *fasthttp.Server
 	listener          net.Listener
 	logger            logger_api.API
-	tracing           behavior.Tracer
-	tracker           behavior.Tracker
-	panicRecovery     behavior.HTTPSpecRecovery
+	tracing           integrations.Tracer
+	tracker           integrations.Tracker
+	panicRecovery     integrations.HTTPSpecRecovery
 }
 
 // New creates a new Server struct.
@@ -120,7 +120,7 @@ func (s *Server) validate(opt *plugin.RuntimeOptions) error {
 			opt.Port,
 			opt.Env.DeploymentEnv(),
 			opt.ServiceOptions,
-			opt.Features,
+			opt.Integrations,
 		}
 	)
 
@@ -195,20 +195,15 @@ func (s *Server) createAuthHandlers(
 	return authPlugin.AuthHandlers()
 }
 
-func (s *Server) getAuth(opt *plugin.RuntimeOptions) (behavior.HTTPSpecAuthenticator, error) {
-	f, err := opt.Features.Feature(options.HTTPSpecAuthFeatureName)
+func (s *Server) getAuth(opt *plugin.RuntimeOptions) (integrations.HTTPSpecAuthenticator, error) {
+	i, err := opt.Integrations.Integration(options.HTTPSpecAuthIntegrationName)
 	if err != nil {
-		return nil, errors.New("http auth is enabled but feature is not available")
+		return nil, errors.New("http auth is enabled but integration is not available")
 	}
 
-	api, ok := f.(plugin.FeatureInternalAPI)
+	a, ok := i.API().(integrations.HTTPSpecAuthenticator)
 	if !ok {
-		return nil, errors.New("http auth is enabled but feature does not implement FeatureInternalAPI")
-	}
-
-	a, ok := api.FrameworkAPI().(behavior.HTTPSpecAuthenticator)
-	if !ok {
-		return nil, errors.New("http auth is enabled but feature does not implement HTTPSpecAuthenticator")
+		return nil, errors.New("http auth is enabled but integration does not implement HTTPSpecAuthenticator")
 	}
 
 	return a, nil
@@ -241,43 +236,33 @@ func (s *Server) registerHTTPServer(handler fasthttp.RequestHandler, opt *plugin
 	return nil
 }
 
-func (s *Server) getPanicRecovery(opt *plugin.RuntimeOptions) (behavior.HTTPSpecRecovery, error) {
+func (s *Server) getPanicRecovery(opt *plugin.RuntimeOptions) (integrations.HTTPSpecRecovery, error) {
 	if s.defs.DisablePanicRecovery {
 		return nil, nil
 	}
 
-	c, err := opt.Features.Feature(options.PanicRecoveryFeatureName)
+	i, err := opt.Integrations.Integration(options.PanicRecoveryIntegrationName)
 	if err != nil {
-		return nil, errors.New("panic recovery is enabled but feature is not available")
+		return nil, errors.New("panic recovery is enabled but integration is not available")
 	}
 
-	api, ok := c.(plugin.FeatureInternalAPI)
+	p, ok := i.API().(integrations.HTTPSpecRecovery)
 	if !ok {
-		return nil, errors.New("panic recovery is enabled but feature does not implement FeatureInternalAPI")
-	}
-
-	p, ok := api.FrameworkAPI().(behavior.HTTPSpecRecovery)
-	if !ok {
-		return nil, errors.New("panic recovery is enabled but feature does not implement HTTPSpecRecovery")
+		return nil, errors.New("panic recovery is enabled but integration does not implement HTTPSpecRecovery")
 	}
 
 	return p, nil
 }
 
-func (s *Server) getCors(opt *plugin.RuntimeOptions) (behavior.CorsHandler, error) {
-	f, err := opt.Features.Feature(options.HTTPCorsFeatureName)
+func (s *Server) getCors(opt *plugin.RuntimeOptions) (integrations.CorsHandler, error) {
+	i, err := opt.Integrations.Integration(options.HTTPCorsIntegrationName)
 	if err != nil {
 		return nil, nil
 	}
 
-	api, ok := f.(plugin.FeatureInternalAPI)
+	c, ok := i.API().(integrations.CorsHandler)
 	if !ok {
-		return nil, errors.New("http cors feature exists but does not implement FeatureInternalAPI")
-	}
-
-	c, ok := api.FrameworkAPI().(behavior.CorsHandler)
-	if !ok {
-		return nil, errors.New("http cors feature exists but does not implement CorsHandler")
+		return nil, errors.New("http cors integration exists but does not implement CorsHandler")
 	}
 
 	return c, nil
@@ -341,39 +326,29 @@ func (s *Server) handleHTTPError(ctx *fasthttp.RequestCtx, err error) {
 	s.logger.Error(ctx, "http error", logger.Error(err))
 }
 
-func (s *Server) getTracing(opt *plugin.RuntimeOptions) (behavior.Tracer, error) {
-	f, err := opt.Features.Feature(options.TracingFeatureName)
+func (s *Server) getTracing(opt *plugin.RuntimeOptions) (integrations.Tracer, error) {
+	i, err := opt.Integrations.Integration(options.TracingIntegrationName)
 	if err != nil {
 		return nil, nil
 	}
 
-	api, ok := f.(plugin.FeatureInternalAPI)
+	t, ok := i.API().(integrations.Tracer)
 	if !ok {
-		return nil, errors.New("tracing feature exists but does not implement FeatureInternalAPI")
-	}
-
-	t, ok := api.FrameworkAPI().(behavior.Tracer)
-	if !ok {
-		return nil, errors.New("tracing feature exists but does not implement Tracer")
+		return nil, errors.New("tracing integration exists but does not implement Tracer")
 	}
 
 	return t, nil
 }
 
-func (s *Server) getTracker(opt *plugin.RuntimeOptions) (behavior.Tracker, error) {
-	f, err := opt.Features.Feature(options.TrackerFeatureName)
+func (s *Server) getTracker(opt *plugin.RuntimeOptions) (integrations.Tracker, error) {
+	i, err := opt.Integrations.Integration(options.TrackerIntegrationName)
 	if err != nil {
 		return nil, nil
 	}
 
-	api, ok := f.(plugin.FeatureInternalAPI)
+	t, ok := i.API().(integrations.Tracker)
 	if !ok {
-		return nil, errors.New("tracker feature exists but does not implement FeatureInternalAPI")
-	}
-
-	t, ok := api.FrameworkAPI().(behavior.Tracker)
-	if !ok {
-		return nil, errors.New("tracker feature exists but does not implement Tracker")
+		return nil, errors.New("tracker integration exists but does not implement Tracker")
 	}
 
 	return t, nil

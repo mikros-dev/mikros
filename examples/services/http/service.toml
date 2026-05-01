@@ -9,6 +9,6 @@ envs = ["SOME_VALUE"]
 #error_stack_trace = "structured"
 error_stack_trace = "disabled"
 
-[services.http]
+[runtime.http]
 disable_auth = true
 

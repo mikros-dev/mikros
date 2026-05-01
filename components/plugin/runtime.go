@@ -63,6 +63,7 @@ type RuntimeOptions struct {
 	ServiceOptions options.ServiceOptions
 	Definitions    *definition.Definitions
 	Features       *FeatureSet
+	Integrations   *IntegrationSet
 	ServiceHandler interface{}
 	Env            env_api.API
 }

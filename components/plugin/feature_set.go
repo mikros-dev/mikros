@@ -77,7 +77,11 @@ func (s *FeatureSet) initializeFeature(
 	create *InitializeOptions,
 ) error {
 	enabled := feature.CanBeInitialized(allow)
-	feature.UpdateInfo(UpdateInfoEntry{Enabled: enabled, Logger: create.Logger, Errors: create.Errors})
+	feature.UpdateInfo(UpdateInfoEntry{
+		Enabled: enabled,
+		Logger: create.Logger,
+		Errors: create.Errors,
+	})
 
 	if enabled {
 		if err := feature.Initialize(ctx, create); err != nil {
@@ -88,22 +92,32 @@ func (s *FeatureSet) initializeFeature(
 	return nil
 }
 
-// Register registers an internal feature that will be initialized, if
-// allowed, to be used by a service. The features will be initialized in the
-// order they are registered.
+// Register registers an internal feature that will be initialized, if allowed,
+// to be used by a service. The features will be initialized in the order they
+// are registered.
+//
+// If a feature already exists with the same name, it will be replaced.
 func (s *FeatureSet) Register(name string, feature Feature, dependencies ...string) {
-	if feature != nil {
-		// Gives the feature access to its name from this point on.
-		feature.UpdateInfo(UpdateInfoEntry{Name: name})
-		f := &registeredFeature{
-			dependencies: dependencies,
-			feature:      feature,
-			name:         name,
-		}
-
-		s.features[name] = f
-		s.orderedFeatures = append(s.orderedFeatures, f)
+	if feature == nil {
+		return
 	}
+
+	// Gives the feature access to its name from this point on.
+	feature.UpdateInfo(UpdateInfoEntry{Name: name})
+	if entry, ok := s.features[name]; ok {
+		entry.feature = feature
+		entry.dependencies = dependencies
+		return
+	}
+
+	f := &registeredFeature{
+		dependencies: dependencies,
+		feature:      feature,
+		name:         name,
+	}
+
+	s.features[name] = f
+	s.orderedFeatures = append(s.orderedFeatures, f)
 }
 
 // Feature retrieves the requested feature by its name if it has been registered.

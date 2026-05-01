@@ -11,8 +11,8 @@ import (
 
 	"github.com/lab259/cors"
 
-	"github.com/mikros-dev/mikros/apis/behavior"
 	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
+	"github.com/mikros-dev/mikros/apis/integrations"
 	http_api "github.com/mikros-dev/mikros/apis/runtimes/http"
 	"github.com/mikros-dev/mikros/components/definition"
 	"github.com/mikros-dev/mikros/components/logger"
@@ -132,7 +132,7 @@ func buildCoreMiddlewares(ctx context.Context, opt *plugin.RuntimeOptions, defs 
 		return chain, nil
 	}
 
-	// If authentication is enabled, the auth feature is mandatory
+	// If authentication is enabled, the auth integration is mandatory
 	auth, err := requireHTTPAuth(opt)
 	if err != nil {
 		return nil, err
@@ -143,7 +143,7 @@ func buildCoreMiddlewares(ctx context.Context, opt *plugin.RuntimeOptions, defs 
 	}), nil
 }
 
-func validateCORS(cors behavior.CorsHandler) error {
+func validateCORS(cors integrations.CorsHandler) error {
 	cfg := cors.Cors()
 
 	if len(cfg.AllowedOrigins) == 0 {
@@ -168,7 +168,7 @@ type corsConfig struct {
 	allowHeaders   string
 }
 
-func corsMiddleware(ch behavior.CorsHandler) func(http.Handler) http.Handler {
+func corsMiddleware(ch integrations.CorsHandler) func(http.Handler) http.Handler {
 	cfg := ch.Cors()
 	c := buildConfig(cfg)
 
@@ -255,37 +255,27 @@ func handlePreflight(w http.ResponseWriter, r *http.Request, c corsConfig, cfg c
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func requireHTTPAuth(opt *plugin.RuntimeOptions) (behavior.HTTPAuthenticator, error) {
-	c, err := opt.Features.Feature(options.HTTPAuthFeatureName)
+func requireHTTPAuth(opt *plugin.RuntimeOptions) (integrations.HTTPAuthenticator, error) {
+	i, err := opt.Integrations.Integration(options.HTTPAuthIntegrationName)
 	if err != nil {
-		return nil, errors.New("http auth is enabled but feature is not available")
+		return nil, errors.New("http auth is enabled but integration is not available")
 	}
 
-	api, ok := c.(plugin.FeatureInternalAPI)
+	auth, ok := i.API().(integrations.HTTPAuthenticator)
 	if !ok {
-		return nil, errors.New("http auth is enabled but feature does not implement FeatureInternalAPI")
-	}
-
-	auth, ok := api.FrameworkAPI().(behavior.HTTPAuthenticator)
-	if !ok {
-		return nil, errors.New("http auth is enabled but feature does not implement HTTPAuthenticator")
+		return nil, errors.New("http auth is enabled but integration does not implement HTTPAuthenticator")
 	}
 
 	return auth, nil
 }
 
-func getCors(opt *plugin.RuntimeOptions) behavior.CorsHandler {
-	f, err := opt.Features.Feature(options.HTTPCorsFeatureName)
+func getCors(opt *plugin.RuntimeOptions) integrations.CorsHandler {
+	i, err := opt.Integrations.Integration(options.HTTPCorsIntegrationName)
 	if err != nil {
 		return nil
 	}
 
-	api, ok := f.(plugin.FeatureInternalAPI)
-	if !ok {
-		return nil
-	}
-
-	c, ok := api.FrameworkAPI().(behavior.CorsHandler)
+	c, ok := i.API().(integrations.CorsHandler)
 	if !ok {
 		return nil
 	}
