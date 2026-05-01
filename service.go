@@ -29,7 +29,6 @@ import (
 	"github.com/mikros-dev/mikros/internal/components/lifecycle"
 	mlogger "github.com/mikros-dev/mikros/internal/components/logger"
 	"github.com/mikros-dev/mikros/internal/components/tags"
-	"github.com/mikros-dev/mikros/internal/components/tracker"
 	"github.com/mikros-dev/mikros/internal/components/validations"
 	"github.com/mikros-dev/mikros/internal/features"
 	"github.com/mikros-dev/mikros/internal/integrations"
@@ -50,7 +49,7 @@ type Service struct {
 	registeredFeatures     *plugin.FeatureSet
 	registeredRuntimes     *plugin.RuntimeSet
 	registeredIntegrations *plugin.IntegrationSet
-	tracker                *tracker.Tracker
+	tracker                integrations_api.Tracker
 	grpcConns              []*grpc.ClientConn
 }
 
@@ -374,9 +373,17 @@ func (s *Service) initializeIntegrations(ctx context.Context, srv interface{}) e
 }
 
 func (s *Service) startTracker() error {
-	t, err := tracker.New(s.registeredIntegrations)
-	if err != nil {
+	i, err := s.registeredIntegrations.Integration(options.TrackerIntegrationName)
+	if err != nil && !strings.Contains(err.Error(), "could not find integration") {
 		return err
+	}
+	if i == nil {
+		return nil
+	}
+
+	t, ok := i.API().(integrations_api.Tracker)
+	if !ok {
+		return errors.New("tracker integration exists but does not implement Tracker")
 	}
 
 	s.tracker = t
@@ -592,8 +599,6 @@ func (s *Service) coupleClients(srv interface{}) error {
 }
 
 func (s *Service) createGrpcCoupledClientOptions(client *options.GrpcClient) *mgrpc.ClientConnectionOptions {
-	serviceTracker, _ := s.tracker.Tracker()
-
 	// For each valid client, establishes their gRPC connection and
 	// initializes the service structure properly by pointing its
 	// members to these connections.
@@ -606,7 +611,7 @@ func (s *Service) createGrpcCoupledClientOptions(client *options.GrpcClient) *mg
 			Namespace: s.envs.CoupledNamespace(),
 			Port:      s.envs.CoupledPort(),
 		},
-		Tracker: serviceTracker,
+		Tracker: s.tracker,
 	}
 
 	if s.definitions.Clients != nil {
