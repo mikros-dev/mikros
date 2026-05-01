@@ -13,9 +13,9 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/mikros-dev/mikros/apis/behavior"
 	errors_api "github.com/mikros-dev/mikros/apis/features/errors"
 	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
+	integrations_api "github.com/mikros-dev/mikros/apis/integrations"
 	mcontext "github.com/mikros-dev/mikros/components/context"
 	"github.com/mikros-dev/mikros/components/definition"
 	mgrpc "github.com/mikros-dev/mikros/components/grpc"
@@ -29,27 +29,28 @@ import (
 	"github.com/mikros-dev/mikros/internal/components/lifecycle"
 	mlogger "github.com/mikros-dev/mikros/internal/components/logger"
 	"github.com/mikros-dev/mikros/internal/components/tags"
-	"github.com/mikros-dev/mikros/internal/components/tracker"
 	"github.com/mikros-dev/mikros/internal/components/validations"
 	"github.com/mikros-dev/mikros/internal/features"
+	"github.com/mikros-dev/mikros/internal/integrations"
 	"github.com/mikros-dev/mikros/internal/runtimes"
 )
 
 // Service is the object that represents a service application.
 type Service struct {
-	serviceOptions     map[string]options.ServiceOptions
-	featureInputs      map[string]interface{}
-	errors             *merrors.Factory
-	logger             *mlogger.Logger
-	ctx                *mcontext.ServiceContext
-	runtimes           []plugin.Runtime
-	clients            map[string]*options.GrpcClient
-	definitions        *definition.Definitions
-	envs               *env.ServiceEnvs
-	registeredFeatures *plugin.FeatureSet
-	registeredRuntimes *plugin.RuntimeSet
-	tracker            *tracker.Tracker
-	grpcConns          []*grpc.ClientConn
+	serviceOptions         map[string]options.ServiceOptions
+	featureInputs          map[string]interface{}
+	errors                 *merrors.Factory
+	logger                 *mlogger.Logger
+	ctx                    *mcontext.ServiceContext
+	runtimes               []plugin.Runtime
+	clients                map[string]*options.GrpcClient
+	definitions            *definition.Definitions
+	envs                   *env.ServiceEnvs
+	registeredFeatures     *plugin.FeatureSet
+	registeredRuntimes     *plugin.RuntimeSet
+	registeredIntegrations *plugin.IntegrationSet
+	tracker                integrations_api.Tracker
+	grpcConns              []*grpc.ClientConn
 }
 
 // ServiceName is the way to retrieve a service name from a string.
@@ -104,16 +105,17 @@ func initService(opt *options.NewServiceOptions) (*Service, error) {
 	}
 
 	return &Service{
-		serviceOptions:     opt.Service,
-		featureInputs:      opt.FeatureInputs,
-		errors:             initServiceErrors(defs, serviceLogger),
-		logger:             serviceLogger,
-		ctx:                ctx,
-		clients:            opt.GrpcClients,
-		definitions:        defs,
-		envs:               envs,
-		registeredFeatures: features.Features(),
-		registeredRuntimes: runtimes.Runtimes(),
+		serviceOptions:         opt.Service,
+		featureInputs:          opt.FeatureInputs,
+		errors:                 initServiceErrors(defs, serviceLogger),
+		logger:                 serviceLogger,
+		ctx:                    ctx,
+		clients:                opt.GrpcClients,
+		definitions:            defs,
+		envs:                   envs,
+		registeredFeatures:     features.Features(),
+		registeredRuntimes:     runtimes.Runtimes(),
+		registeredIntegrations: integrations.Integrations(),
 	}, nil
 }
 
@@ -160,7 +162,7 @@ func initServiceErrors(defs *definition.Definitions, log logger_api.API) *merror
 	})
 }
 
-// WithExternalRuntimes allows a service to add external runtime 1implementations
+// WithExternalRuntimes allows a service to add external runtime implementations
 // into it.
 func (s *Service) WithExternalRuntimes(runtimes *plugin.RuntimeSet) *Service {
 	s.registeredRuntimes.Append(runtimes)
@@ -171,10 +173,16 @@ func (s *Service) WithExternalRuntimes(runtimes *plugin.RuntimeSet) *Service {
 	return s
 }
 
-// WithExternalFeatures allows a service to add external registeredFeatures into it, so they
+// WithExternalFeatures allows a service to add external Features into it, so they
 // can be used from it.
 func (s *Service) WithExternalFeatures(features *plugin.FeatureSet) *Service {
 	s.registeredFeatures.Append(features)
+	return s
+}
+
+// WithExternalIntegrations allows a service to add external Integrations into it.
+func (s *Service) WithExternalIntegrations(integrations *plugin.IntegrationSet) *Service {
+	s.registeredIntegrations.Append(integrations)
 	return s
 }
 
@@ -210,12 +218,8 @@ func (s *Service) bootstrap(ctx context.Context, srv interface{}) *merrors.Abort
 		return err
 	}
 
-	if err := s.startTracker(); err != nil {
-		return merrors.NewAbortError("could not initialize the service tracker", err)
-	}
-
-	if err := s.setupLoggerExtractor(); err != nil {
-		return merrors.NewAbortError("could not set logger extractor", err)
+	if err := s.startIntegrations(ctx, srv); err != nil {
+		return err
 	}
 
 	if err := s.initializeServiceInternals(ctx, srv); err != nil {
@@ -264,14 +268,14 @@ func (s *Service) postProcessDefinitions(srv interface{}) error {
 	return s.definitions.Validate()
 }
 
-// startFeatures starts all registered registeredFeatures and everything that are related
+// startFeatures starts all registered Features and everything that are related
 // to them.
 func (s *Service) startFeatures(ctx context.Context, srv interface{}) *merrors.AbortError {
-	s.logger.Info(ctx, "starting dependent registeredRuntimes")
+	s.logger.Info(ctx, "starting service features")
 
-	// Initialize registeredFeatures
+	// Initialize Features
 	if err := s.initializeFeatures(ctx, srv); err != nil {
-		return merrors.NewAbortError("could not initialize registeredFeatures", err)
+		return merrors.NewAbortError("could not initialize Features", err)
 	}
 
 	return nil
@@ -288,7 +292,7 @@ func (s *Service) initializeFeatures(ctx context.Context, srv interface{}) error
 		Env:            s.envs,
 	}
 
-	// Initialize registered registeredFeatures
+	// Initialize registered Features
 	if err := s.registeredFeatures.InitializeAll(ctx, initializeOptions); err != nil {
 		return err
 	}
@@ -298,7 +302,7 @@ func (s *Service) initializeFeatures(ctx context.Context, srv interface{}) error
 		return err
 	}
 
-	// Load tagged registeredFeatures into the service struct
+	// Load tagged Features into the service struct
 	return s.loadTaggedFeatures(ctx, srv)
 }
 
@@ -327,10 +331,59 @@ func (s *Service) loadTaggedFeatures(ctx context.Context, srv interface{}) error
 	return nil
 }
 
-func (s *Service) startTracker() error {
-	t, err := tracker.New(s.registeredFeatures)
-	if err != nil {
+func (s *Service) startIntegrations(ctx context.Context, srv interface{}) *merrors.AbortError {
+	s.logger.Info(ctx, "starting service integrations")
+
+	// Initialize them all
+	if err := s.initializeIntegrations(ctx, srv); err != nil {
+		return merrors.NewAbortError("could not initialize Integrations", err)
+	}
+
+	// And retrieve some that are related directly to the service.
+
+	if err := s.startTracker(); err != nil {
+		return merrors.NewAbortError("could not initialize the service tracker", err)
+	}
+
+	if err := s.setupLoggerExtractor(); err != nil {
+		return merrors.NewAbortError("could not set logger extractor", err)
+	}
+
+	return nil
+}
+
+func (s *Service) initializeIntegrations(ctx context.Context, srv interface{}) error {
+	initializeOptions := &plugin.InitializeOptions{
+		Logger:         s.logger,
+		Errors:         s.errors,
+		Definitions:    s.definitions,
+		Tags:           s.tags(),
+		ServiceContext: s.ctx,
+		FeatureInputs:  s.featureInputs,
+		Env:            s.envs,
+	}
+
+	// Initialize registered Integrations
+	if err := s.registeredIntegrations.InitializeAll(ctx, initializeOptions); err != nil {
 		return err
+	}
+
+	// And execute their Start API
+	return s.registeredIntegrations.StartAll(ctx, srv)
+}
+
+func (s *Service) startTracker() error {
+	i, err := s.registeredIntegrations.Integration(options.TrackerIntegrationName)
+	if err != nil && !strings.Contains(err.Error(), "could not find integration") {
+		return err
+	}
+	if i == nil {
+		return nil
+	}
+
+	t, ok := i.API().(integrations_api.Tracker)
+	if !ok {
+		return errors.New("tracker integration exists but does not implement Tracker")
 	}
 
 	s.tracker = t
@@ -338,20 +391,20 @@ func (s *Service) startTracker() error {
 }
 
 func (s *Service) setupLoggerExtractor() error {
-	e, err := s.registeredFeatures.Feature(options.LoggerExtractorFeatureName)
-	if err != nil && !strings.Contains(err.Error(), "could not find feature") {
+	e, err := s.registeredIntegrations.Integration(options.LoggerExtractorIntegrationName)
+	if err != nil && !strings.Contains(err.Error(), "could not find integration") {
 		return err
 	}
-
-	if api, ok := e.(plugin.FeatureInternalAPI); ok {
-		extractor, ok := api.FrameworkAPI().(behavior.LoggerExtractor)
-		if !ok {
-			return fmt.Errorf("could retrieve feature %s to logger extractor", options.LoggerExtractorFeatureName)
-		}
-
-		s.logger.SetContextFieldExtractor(extractor.Extract)
+	if e == nil {
+		return nil
 	}
 
+	extractor, ok := e.API().(integrations_api.LoggerExtractor)
+	if !ok {
+		return errors.New("logger extractor integration exists but does not implement LoggerExtractor")
+	}
+
+	s.logger.SetContextFieldExtractor(extractor.Extract)
 	return nil
 }
 
@@ -417,13 +470,14 @@ func (s *Service) initializeRegisteredRuntimes(ctx context.Context, srv interfac
 			ServiceOptions: opt,
 			Definitions:    s.definitions,
 			Features:       s.registeredFeatures,
+			Integrations:   s.registeredIntegrations,
 			ServiceHandler: srv,
 			Env:            s.envs,
 		}); err != nil {
 			return err
 		}
 
-		// Saves only the initialized registeredRuntimes
+		// Saves only the initialized Runtime
 		s.runtimes = append(s.runtimes, runtime)
 	}
 
@@ -497,7 +551,7 @@ func (s *Service) setFieldFromEnv(field reflect.StructField, fieldValue reflect.
 	return nil
 }
 
-// coupleClients establishes connections with all client registeredRuntimes that a service
+// coupleClients establishes connections with all client services that a service
 // has as dependency.
 func (s *Service) coupleClients(srv interface{}) error {
 	// If the service does not have dependencies, or we are running tests,
@@ -545,8 +599,6 @@ func (s *Service) coupleClients(srv interface{}) error {
 }
 
 func (s *Service) createGrpcCoupledClientOptions(client *options.GrpcClient) *mgrpc.ClientConnectionOptions {
-	serviceTracker, _ := s.tracker.Tracker()
-
 	// For each valid client, establishes their gRPC connection and
 	// initializes the service structure properly by pointing its
 	// members to these connections.
@@ -559,7 +611,7 @@ func (s *Service) createGrpcCoupledClientOptions(client *options.GrpcClient) *mg
 			Namespace: s.envs.CoupledNamespace(),
 			Port:      s.envs.CoupledPort(),
 		},
-		Tracker: serviceTracker,
+		Tracker: s.tracker,
 	}
 
 	if s.definitions.Clients != nil {
@@ -644,8 +696,8 @@ func (s *Service) stopService(ctx context.Context) {
 		}
 	}
 
-	if err := s.stopDependentServices(ctx); err != nil {
-		s.logger.Error(ctx, "could not stop other running registeredRuntimes", logger.Error(err))
+	if err := s.stopDependencies(ctx); err != nil {
+		s.logger.Error(ctx, "could not stop service dependencies", logger.Error(err))
 	}
 
 	for _, svc := range s.runtimes {
@@ -658,11 +710,19 @@ func (s *Service) stopService(ctx context.Context) {
 	s.logger.Info(ctx, "service stopped")
 }
 
-// stopDependentServices stops other registeredRuntimes that are running along with the
-// main service.
-func (s *Service) stopDependentServices(ctx context.Context) error {
-	s.logger.Info(ctx, "stopping dependent registeredRuntimes")
-	return s.registeredFeatures.CleanupAll(ctx)
+// stopDependencies cleans up features and integrations that the service is using.
+func (s *Service) stopDependencies(ctx context.Context) error {
+	s.logger.Info(ctx, "stopping service features and integrations")
+
+	if err := s.registeredFeatures.CleanupAll(ctx); err != nil {
+		return err
+	}
+
+	if err := s.registeredIntegrations.CleanupAll(ctx); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Logger gives access to the logger API from inside a service context.
@@ -683,7 +743,7 @@ func (s *Service) Errors() errors_api.ErrorAPI {
 	return s.errors
 }
 
-// Abort is a helper method to abort registeredRuntimes in the right way when external
+// Abort is a helper method to abort Runtime in the right way when external
 // initialization is needed.
 func (s *Service) Abort(message string, err error) {
 	s.fatalAbort(context.TODO(), merrors.NewAbortError(message, err))
@@ -731,8 +791,7 @@ func (s *Service) tags() map[string]string {
 	}
 }
 
-// Feature is the service mechanism to have access to an external feature
-// public API.
+// Feature is the mechanism that allows a service get access to feature API.
 func (s *Service) Feature(ctx context.Context, target interface{}) error {
 	if reflect.TypeOf(target).Kind() != reflect.Ptr {
 		return s.errors.Internal(errors.New("requested target API must be a pointer")).

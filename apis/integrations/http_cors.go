@@ -1,4 +1,4 @@
-package behavior
+package integrations
 
 import (
 	"github.com/lab259/cors"

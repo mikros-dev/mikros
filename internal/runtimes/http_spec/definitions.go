@@ -13,7 +13,7 @@ import (
 //revive:disable:line-length-limit
 type Definitions struct {
 	DisableAuth          bool `toml:"disable_auth,omitempty" default:"false" json:"disable_auth"`
-	DisablePanicRecovery bool `toml:"disable_panic_recovery,omitempty" default:"false" json:"disable_panic_recovery"`
+	DisablePanicRecovery bool `toml:"disable_panic_recovery,omitempty" default:"true" json:"disable_panic_recovery"`
 	MaxRequestBodySize   int  `toml:"max_request_body_size,omitempty" default:"4" json:"max_request_body_size"` // in megabytes
 }
 

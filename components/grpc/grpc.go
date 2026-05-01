@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 
-	"github.com/mikros-dev/mikros/apis/behavior"
+	"github.com/mikros-dev/mikros/apis/integrations"
 	mcontext "github.com/mikros-dev/mikros/components/context"
 	"github.com/mikros-dev/mikros/components/service"
 	merrors "github.com/mikros-dev/mikros/internal/components/errors"
@@ -22,7 +22,7 @@ type ClientConnectionOptions struct {
 	Context               *mcontext.ServiceContext
 	Connection            ConnectionOptions
 	AlternativeConnection *ConnectionOptions
-	Tracker               behavior.Tracker
+	Tracker               integrations.Tracker
 }
 
 // ConnectionOptions defines the configuration details for establishing
@@ -79,7 +79,7 @@ func getClientConnectionAddress(options *ClientConnectionOptions) string {
 
 func gRPCClientUnaryInterceptor(
 	svcCtx *mcontext.ServiceContext,
-	tracker behavior.Tracker,
+	tracker integrations.Tracker,
 	from, to service.Name,
 ) grpc.UnaryClientInterceptor {
 	return func(

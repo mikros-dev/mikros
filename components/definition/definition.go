@@ -33,7 +33,7 @@ type Definitions struct {
 	Tests    Tests                             `toml:"tests,omitempty"`
 	Service  map[string]interface{}            `toml:"service,omitempty"`
 	Clients  map[string]GrpcClient             `toml:"clients,omitempty"`
-	Runtimes map[string]map[string]interface{} `toml:"runtimes,omitempty"`
+	Runtime  map[string]map[string]interface{} `toml:"runtime,omitempty"`
 
 	path                  string
 	supportedRuntimeTypes []string
@@ -268,7 +268,7 @@ func (d *Definitions) ExternalRuntimeDefinitions(name string) (ExternalRuntimeEn
 
 // LoadRuntime retrieves only definitions from a specific runtime type.
 func (d *Definitions) LoadRuntime(runtimeType RuntimeType) (map[string]interface{}, bool) {
-	dd, ok := d.Runtimes[runtimeType.String()]
+	dd, ok := d.Runtime[runtimeType.String()]
 	return dd, ok
 }
 
