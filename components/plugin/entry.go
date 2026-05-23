@@ -20,7 +20,7 @@ type Entry struct {
 	featureEnabled bool
 	featureName    string
 	logger         logger_api.API
-	errors         errors_api.ErrorAPI
+	errors         errors_api.Errors
 }
 
 // UpdateInfo is an internal method that allows a feature to have its
@@ -85,6 +85,5 @@ func (e *Entry) WrapError(ctx context.Context, err error) error {
 	}
 
 	return e.errors.Internal(err).
-		WithAttributes(logger.String("feature.name", e.featureName)).
-		Submit(ctx)
+		WithAttributes(logger.String("feature.name", e.featureName))
 }

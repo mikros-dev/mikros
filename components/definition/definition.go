@@ -42,7 +42,7 @@ type Definitions struct {
 
 // Log represents configuration settings for logging in a service.
 type Log struct {
-	ErrorStackTrace string            `toml:"error_stack_trace,omitempty" validate:"omitempty,oneof=default disabled structured" default:"default"`
+	ErrorStackTrace string            `toml:"error_stack_trace,omitempty" validate:"omitempty,oneof=default disabled structured" default:"disabled"`
 	Level           string            `toml:"level,omitempty" validate:"omitempty,oneof=info debug error warn internal"`
 	Attributes      map[string]string `toml:"attributes,omitempty"`
 }

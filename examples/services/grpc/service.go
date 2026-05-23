@@ -4,13 +4,15 @@ import (
 	"context"
 	"errors"
 
+	errors_api "github.com/mikros-dev/mikros/apis/features/errors"
 	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
 	userpb "github.com/mikros-dev/mikros/examples/protobuf-workspace/gen/go/services/user"
 )
 
 type service struct {
-	Definitions *Definitions   `mikros:"definitions"`
-	Logger      logger_api.API `mikros:"feature"`
+	Definitions *Definitions      `mikros:"definitions"`
+	Logger      logger_api.API    `mikros:"feature"`
+	Error       errors_api.Errors `mikros:"feature"`
 }
 
 type Definitions struct {
@@ -27,7 +29,9 @@ func (d *Definitions) Validate() error {
 }
 
 func (s *service) GetUserByID(ctx context.Context, req *userpb.GetUserByIDRequest) (*userpb.GetUserByIDResponse, error) {
-	return &userpb.GetUserByIDResponse{}, nil
+	s.Logger.Info(ctx, "the real handler")
+	return nil, s.Error.FailedPrecondition("teste")
+	// return &userpb.GetUserByIDResponse{}, nil
 }
 
 func (s *service) GetUsers(ctx context.Context, req *userpb.GetUsersRequest) (*userpb.GetUsersResponse, error) {

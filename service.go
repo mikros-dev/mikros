@@ -39,7 +39,7 @@ import (
 type Service struct {
 	serviceOptions         map[string]options.ServiceOptions
 	featureInputs          map[string]interface{}
-	errors                 *merrors.Factory
+	errors                 errors_api.Errors
 	logger                 *mlogger.Logger
 	ctx                    *mcontext.ServiceContext
 	runtimes               []plugin.Runtime
@@ -107,7 +107,7 @@ func initService(opt *options.NewServiceOptions) (*Service, error) {
 	return &Service{
 		serviceOptions:         opt.Service,
 		featureInputs:          opt.FeatureInputs,
-		errors:                 initServiceErrors(defs, serviceLogger),
+		errors:                 initServiceErrors(defs),
 		logger:                 serviceLogger,
 		ctx:                    ctx,
 		clients:                opt.GrpcClients,
@@ -155,10 +155,9 @@ func initLogger(defs *definition.Definitions, envs *env.ServiceEnvs) (*mlogger.L
 	return serviceLogger, nil
 }
 
-func initServiceErrors(defs *definition.Definitions, log logger_api.API) *merrors.Factory {
-	return merrors.NewFactory(merrors.FactoryOptions{
+func initServiceErrors(defs *definition.Definitions) errors_api.Errors {
+	return merrors.NewBuilder(merrors.BuilderOptions{
 		ServiceName: defs.ServiceName().String(),
-		Logger:      log,
 	})
 }
 
@@ -195,7 +194,7 @@ func (s *Service) Start(srv interface{}) {
 	ctx := context.Background()
 
 	if err := s.bootstrap(ctx, srv); err != nil {
-		s.fatalAbort(ctx, err)
+		s.fatalAbort(ctx, "could not bootstrap service", err)
 	}
 
 	// If we're running tests, we end the method here to avoid putting the
@@ -207,11 +206,11 @@ func (s *Service) Start(srv interface{}) {
 	s.run(ctx, srv)
 }
 
-func (s *Service) bootstrap(ctx context.Context, srv interface{}) *merrors.AbortError {
+func (s *Service) bootstrap(ctx context.Context, srv interface{}) error {
 	s.logger.Info(ctx, "starting service")
 
 	if err := s.postProcessDefinitions(srv); err != nil {
-		return merrors.NewAbortError("service definitions error", err)
+		return fmt.Errorf("service definitions error: %w", err)
 	}
 
 	if err := s.startFeatures(ctx, srv); err != nil {
@@ -270,12 +269,12 @@ func (s *Service) postProcessDefinitions(srv interface{}) error {
 
 // startFeatures starts all registered Features and everything that are related
 // to them.
-func (s *Service) startFeatures(ctx context.Context, srv interface{}) *merrors.AbortError {
+func (s *Service) startFeatures(ctx context.Context, srv interface{}) error {
 	s.logger.Info(ctx, "starting service features")
 
 	// Initialize Features
 	if err := s.initializeFeatures(ctx, srv); err != nil {
-		return merrors.NewAbortError("could not initialize Features", err)
+		return fmt.Errorf("could not initialize Features: %w", err)
 	}
 
 	return nil
@@ -331,22 +330,22 @@ func (s *Service) loadTaggedFeatures(ctx context.Context, srv interface{}) error
 	return nil
 }
 
-func (s *Service) startIntegrations(ctx context.Context, srv interface{}) *merrors.AbortError {
+func (s *Service) startIntegrations(ctx context.Context, srv interface{}) error {
 	s.logger.Info(ctx, "starting service integrations")
 
 	// Initialize them all
 	if err := s.initializeIntegrations(ctx, srv); err != nil {
-		return merrors.NewAbortError("could not initialize Integrations", err)
+		return fmt.Errorf("could not initialize Integrations: %w", err)
 	}
 
 	// And retrieve some that are related directly to the service.
 
 	if err := s.startTracker(); err != nil {
-		return merrors.NewAbortError("could not initialize the service tracker", err)
+		return fmt.Errorf("could not initialize the service tracker: %w", err)
 	}
 
 	if err := s.setupLoggerExtractor(); err != nil {
-		return merrors.NewAbortError("could not set logger extractor", err)
+		return fmt.Errorf("could not set logger extractor: %w", err)
 	}
 
 	return nil
@@ -408,15 +407,15 @@ func (s *Service) setupLoggerExtractor() error {
 	return nil
 }
 
-func (s *Service) initializeServiceInternals(ctx context.Context, srv interface{}) *merrors.AbortError {
+func (s *Service) initializeServiceInternals(ctx context.Context, srv interface{}) error {
 	// Initialize fields inside the service struct according to their tags.
 	if err := s.initializeServiceTaggedValues(srv); err != nil {
-		return merrors.NewAbortError("could not initialize service tagged values", err)
+		return fmt.Errorf("could not initialize service tagged values: %w", err)
 	}
 
 	// Establishes connection with all gRPC clients.
 	if err := s.coupleClients(srv); err != nil {
-		return merrors.NewAbortError("could not establish connection with clients", err)
+		return fmt.Errorf("could not establish connection with clients: %w", err)
 	}
 
 	// Call lifecycle.OnStart before validating the service structure to
@@ -427,19 +426,19 @@ func (s *Service) initializeServiceInternals(ctx context.Context, srv interface{
 		Env:            s.envs.DeploymentEnv(),
 		ExecuteOnTests: s.definitions.Tests.ExecuteLifecycle,
 	}); err != nil {
-		return merrors.NewAbortError("failed while running lifecycle.OnStart", err)
+		return fmt.Errorf("failed while running lifecycle.OnStart: %w", err)
 	}
 
 	if s.envs.DeploymentEnv() != definition.DeploymentEnvTest {
 		if err := validations.EnsureValuesAreInitialized(srv); err != nil {
-			return merrors.NewAbortError("service server object is not properly initialized", err)
+			return fmt.Errorf("service server object is not properly initialized: %w", err)
 		}
 	}
 
 	// Initialize all registered runtime types after everything we need to
 	// handle with the service structure is already completed.
 	if err := s.initializeRegisteredRuntimes(ctx, srv); err != nil {
-		return merrors.NewAbortError("could not initialize runtime", err)
+		return fmt.Errorf("could not initialize runtime: %w", err)
 	}
 
 	return nil
@@ -654,7 +653,7 @@ func (s *Service) run(ctx context.Context, srv interface{}) {
 		s.logger.Info(ctx, "runtime is running", attrs...)
 
 		if err := svc.Run(ctx, srv); err != nil {
-			s.fatalAbort(ctx, merrors.NewAbortError("could not execute runtime", err))
+			s.fatalAbort(ctx, "could not execute runtime", err)
 		}
 
 		return
@@ -681,7 +680,7 @@ func (s *Service) run(ctx context.Context, srv interface{}) {
 	// Blocks the call
 	select {
 	case err := <-errChan:
-		s.fatalAbort(ctx, merrors.NewAbortError("could not execute runtime", err))
+		s.fatalAbort(ctx, "could not execute runtime", err)
 
 	case <-stopChan:
 	}
@@ -739,20 +738,27 @@ func (s *Service) Logger() logger_api.API {
 // Deprecated: This method is deprecated and should not be used anymore. To access
 // the error API, one must declare an internal service feature
 // and initialize it using struct tags.
-func (s *Service) Errors() errors_api.ErrorAPI {
+func (s *Service) Errors() errors_api.Errors {
 	return s.errors
 }
 
-// Abort is a helper method to abort Runtime in the right way when external
-// initialization is needed.
+// Abort is a helper method to abort the service.
 func (s *Service) Abort(message string, err error) {
-	s.fatalAbort(context.TODO(), merrors.NewAbortError(message, err))
+	s.fatalAbort(context.TODO(), message, err)
 }
 
 // abort is an internal helper method to finish the service execution with an
 // error message.
-func (s *Service) fatalAbort(ctx context.Context, err *merrors.AbortError) {
-	s.logger.Fatal(ctx, err.Message, logger.Error(err.InnerError))
+func (s *Service) fatalAbort(ctx context.Context, reason string, err error) {
+	attrs := []logger_api.Attribute{
+		logger.String("reason", reason),
+	}
+
+	if err != nil {
+		attrs = append(attrs, logger.Error(err))
+	}
+
+	s.logger.Fatal(ctx, "aborting service execution", attrs...)
 }
 
 // ServiceName gives back the service name.
@@ -792,10 +798,9 @@ func (s *Service) tags() map[string]string {
 }
 
 // Feature is the mechanism that allows a service get access to feature API.
-func (s *Service) Feature(ctx context.Context, target interface{}) error {
+func (s *Service) Feature(_ context.Context, target interface{}) error {
 	if reflect.TypeOf(target).Kind() != reflect.Ptr {
-		return s.errors.Internal(errors.New("requested target API must be a pointer")).
-			Submit(ctx)
+		return s.errors.Internal(errors.New("requested target API must be a pointer"))
 	}
 
 	it := s.registeredFeatures.Iterator()
@@ -826,8 +831,7 @@ func (s *Service) Feature(ctx context.Context, target interface{}) error {
 		}
 	}
 
-	return s.errors.Internal(errors.New("could not find feature that supports this requested API")).
-		Submit(ctx)
+	return s.errors.Internal(errors.New("could not find feature that supports this requested API"))
 }
 
 // Env gives access to the framework environment variables public API.

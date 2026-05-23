@@ -53,7 +53,7 @@ type UpdateInfoEntry struct {
 	Enabled bool
 	Name    string
 	Logger  logger_api.API
-	Errors  errors_api.ErrorAPI
+	Errors  errors_api.Errors
 }
 
 // FeatureController is an optional behavior that a feature may have if it needs
@@ -126,7 +126,7 @@ type CanBeInitializedOptions struct {
 // a Feature interface, allowing a feature to be properly initialized.
 type InitializeOptions struct {
 	Logger         logger_api.API
-	Errors         errors_api.ErrorAPI
+	Errors         errors_api.Errors
 	Env            env_api.API
 	Definitions    *definition.Definitions
 	Tags           map[string]string

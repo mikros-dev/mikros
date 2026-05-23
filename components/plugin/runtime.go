@@ -57,7 +57,7 @@ type RuntimeOptions struct {
 	Name           service.Name
 	Product        string
 	Logger         logger_api.API
-	Errors         errors_api.ErrorAPI
+	Errors         errors_api.Errors
 	ServiceContext *mcontext.ServiceContext
 	Tags           map[string]string
 	ServiceOptions options.ServiceOptions

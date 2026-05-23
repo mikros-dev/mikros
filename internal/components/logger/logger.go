@@ -70,10 +70,10 @@ type Logger struct {
 // Options represents customizable settings for configuring logger behaviors
 // and attributes in a structured logging system.
 type Options struct {
-	TextOutput      bool
-	DiscardMessages bool
-	ErrorStackTrace string
-	FixedAttributes map[string]string
+	TextOutput        bool
+	DiscardMessages   bool
+	ErrorStackTrace   string
+	FixedAttributes   map[string]string
 }
 
 // New creates a new Logger interface for applications.
@@ -215,11 +215,12 @@ func (l *Logger) handleErrorMessage(ctx context.Context, msg string, attrs ...lo
 		}))
 	}
 
-	l.printErrorStackTrace(&r, 2+skipped)
-
+	// Print the error message before the stack trace.
 	if err := l.errorLogger.Handler().Handle(ctx, r); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "error logging error: %v\n", err)
 	}
+
+	l.printErrorStackTrace(&r, 2+skipped)
 }
 
 func (l *Logger) printErrorStackTrace(record *slog.Record, skip int) {

@@ -4,13 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"log"
 	"net/http"
 
 	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
+	merrors "github.com/mikros-dev/mikros/components/errors"
 	"github.com/mikros-dev/mikros/components/logger"
-	merrors "github.com/mikros-dev/mikros/internal/components/errors"
 )
 
 // ProblemOptions configures how error responses are handled and output.
@@ -53,19 +52,19 @@ func Problem(ctx context.Context, w http.ResponseWriter, err error, options ...P
 }
 
 func errorToStatusCode(err error) int {
-	var e *merrors.Error
-	if !errors.As(err, &e) {
+	e, ok := merrors.From(err)
+	if !ok {
 		return http.StatusInternalServerError
 	}
 
-	switch e.Kind {
+	switch e.Kind() {
 	case merrors.KindNotFound:
 		return http.StatusNotFound
 	case merrors.KindPermission:
 		return http.StatusForbidden
 	case merrors.KindPrecondition:
 		return http.StatusPreconditionFailed
-	case merrors.KindValidation:
+	case merrors.KindInvalidArgument:
 		return http.StatusBadRequest
 	default:
 		return http.StatusInternalServerError
