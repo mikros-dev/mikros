@@ -11,3 +11,7 @@ product = "EXAMPLE"
 [service]
   foo = "hello world"
   bar = 42
+
+#[log]
+#error_stack_trace = "default"
+

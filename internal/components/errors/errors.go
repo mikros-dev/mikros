@@ -1,7 +1,6 @@
 package errors
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 
@@ -10,132 +9,158 @@ import (
 
 	errors_api "github.com/mikros-dev/mikros/apis/features/errors"
 	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
-	"github.com/mikros-dev/mikros/components/logger"
+	merrors "github.com/mikros-dev/mikros/components/errors"
 	"github.com/mikros-dev/mikros/components/service"
 )
 
-// ServiceError is a structure that holds internal error details to improve
-// error log description for the end-user, and it implements the errorApi.Error
-// interface.
-type ServiceError struct {
-	err        *Error
-	attributes []logger_api.Attribute
-	logger     func(ctx context.Context, msg string, attrs ...logger_api.Attribute)
+// Ensure that the value implements the value interface
+var _ merrors.View = &value{}
+
+// value is the framework error type that a service handler should return to
+// keep a standard error between services.
+type value struct {
+	code        int32
+	serviceName string
+	message     string
+	destination string
+	kind        merrors.Kind
+	cause       error
+	attributes  []logger_api.Attribute
 }
 
-type serviceErrorOptions struct {
-	Code        int32
-	Kind        Kind
-	ServiceName string
-	Message     string
-	Destination string
-	Logger      func(ctx context.Context, msg string, attrs ...logger_api.Attribute)
-	Error       error
+func (v *value) Code() int32 {
+	return v.code
 }
 
-func newServiceError(options *serviceErrorOptions) *ServiceError {
-	err := &Error{
-		Code:        options.Code,
-		ServiceName: options.ServiceName,
-		Message:     options.Message,
-		Destination: options.Destination,
-		Kind:        options.Kind,
+func (v *value) Error() string {
+	return v.String()
+}
+
+func (v *value) String() string {
+	b, _ := json.Marshal(v.grpcMessage())
+	return string(b)
+}
+
+func (v *value) WithCode(code errors_api.Code) errors_api.Value {
+	v.code = code.ErrorCode()
+	return v
+}
+
+func (v *value) WithAttributes(attrs ...logger_api.Attribute) errors_api.Value {
+	v.attributes = append(v.attributes, attrs...)
+	return v
+}
+
+func (v *value) Message() string {
+	return v.message
+}
+
+func (v *value) Attributes() []logger_api.Attribute {
+	return append([]logger_api.Attribute(nil), v.attributes...)
+}
+
+func (v *value) Cause() error {
+	return v.cause
+}
+
+func (v *value) Kind() merrors.Kind {
+	return v.kind
+}
+
+func (v *value) Unwrap() error {
+	return v.cause
+}
+
+type grpcErrorMessage struct {
+	Kind        merrors.Kind `json:"kind"`
+	Message     string       `json:"message,omitempty"`
+	Cause       string       `json:"cause,omitempty"`
+	Code        int32        `json:"code,omitempty"`
+	ServiceName string       `json:"service_name,omitempty"`
+	Destination string       `json:"destination,omitempty"`
+}
+
+func (v *value) grpcMessage() grpcErrorMessage {
+	msg := grpcErrorMessage{
+		Kind:        v.kind,
+		Message:     v.message,
+		Code:        v.code,
+		ServiceName: v.serviceName,
+		Destination: v.destination,
+	}
+	if v.cause != nil {
+		msg.Cause = v.cause.Error()
 	}
 
-	if options.Error != nil {
-		err.SubLevelError = options.Error.Error()
+	return msg
+}
+
+func ToGRPCStatus(err error) (*status.Status, bool, error) {
+	var v *value
+	if !errors.As(err, &v) {
+		return nil, false, nil
 	}
 
-	return &ServiceError{
-		err:    err,
-		logger: options.Logger,
+	b, err := json.Marshal(v.grpcMessage())
+	if err != nil {
+		return nil, false, err
+	}
+
+	return status.New(grpcCode(v.kind), string(b)), true, nil
+}
+
+func grpcCode(kind merrors.Kind) codes.Code {
+	switch kind {
+	case merrors.KindInternal:
+		return codes.Internal
+	case merrors.KindNotFound:
+		return codes.NotFound
+	case merrors.KindInvalidArgument:
+		return codes.InvalidArgument
+	case merrors.KindPrecondition:
+		return codes.FailedPrecondition
+	case merrors.KindPermission:
+		return codes.PermissionDenied
+	case merrors.KindRPC:
+		return codes.Unavailable
+	default:
+		return codes.Unknown
 	}
 }
 
 // FromGRPCStatus converts a gRPC status object into a standardized service
 // error format for better interoperability.
 func FromGRPCStatus(st *status.Status, from, to service.Name) error {
-	var (
-		msg    = st.Message()
-		retErr Error
-	)
-
-	if err := json.Unmarshal([]byte(msg), &retErr); err != nil {
-		return newServiceError(&serviceErrorOptions{
-			Destination: to.String(),
-			Kind:        KindInternal,
-			ServiceName: from.String(),
-			Message:     "got an internal error",
-			Error:       errors.New(msg),
-		}).Submit(context.TODO())
+	if st == nil {
+		return internalRemoteError(from, to, "nil gRPC status")
 	}
 
-	// If we're dealing with a non-mikros error, change it to an Internal
-	// one so services can properly handle them.
-	if st.Code() != codes.Unknown {
-		retErr.Kind = KindInternal
-		retErr.SubLevelError = msg
+	var msg grpcErrorMessage
+	if err := json.Unmarshal([]byte(st.Message()), &msg); err != nil {
+		return internalRemoteError(from, to, st.Message())
 	}
 
-	return &retErr
-}
-
-// WithCode attaches a numeric error code to the ServiceError.
-func (s *ServiceError) WithCode(code errors_api.Code) errors_api.Error {
-	s.err.Code = code.ErrorCode()
-	return s
-}
-
-// WithAttributes adds custom log attributes to the ServiceError, augmenting
-// the error context for detailed logging.
-func (s *ServiceError) WithAttributes(attrs ...logger_api.Attribute) errors_api.Error {
-	s.attributes = attrs
-	return s
-}
-
-// Submit logs the error details using the configured logger and returns the
-// underlying error for further handling.
-func (s *ServiceError) Submit(ctx context.Context) error {
-	// Display the error message onto the output
-	if s.logger != nil {
-		logFields := []logger_api.Attribute{withKind(s.err.Kind)}
-		if s.err.SubLevelError != "" {
-			logFields = append(logFields, logger.String("error.message", s.err.SubLevelError))
-		}
-
-		s.logger(ctx, s.err.Message, append(logFields, s.attributes...)...)
+	var cause error
+	if msg.Cause != "" {
+		cause = errors.New(msg.Cause)
 	}
 
-	// And give back the proper error for the API
-	return s.err
+	return &value{
+		code:        msg.Code,
+		serviceName: from.String(),
+		destination: to.String(),
+		message:     msg.Message,
+		kind:        msg.Kind,
+		cause:       cause,
+	}
 }
 
-// Kind returns the string representation of the error's kind.
-func (s *ServiceError) Kind() string {
-	return s.err.Kind.String()
-}
-
-// withKind wraps a Kind into a structured log Attribute.
-func withKind(kind Kind) logger_api.Attribute {
-	return logger.String("error.kind", string(kind))
-}
-
-// Error is the framework error type that a service handler should return to
-// keep a standard error between services.
-type Error struct {
-	Code          int32  `json:"code"`
-	ServiceName   string `json:"service_name,omitempty"`
-	Message       string `json:"message,omitempty"`
-	Destination   string `json:"destination,omitempty"`
-	Kind          Kind   `json:"kind"`
-	SubLevelError string `json:"details,omitempty"`
-}
-
-func (e *Error) Error() string {
-	return e.String()
-}
-
-func (e *Error) String() string {
-	b, _ := json.Marshal(e)
-	return string(b)
+func internalRemoteError(from, to service.Name, msg string) error {
+	return &value{
+		serviceName: from.String(),
+		destination: to.String(),
+		kind:        merrors.KindInternal,
+		cause:       errors.New(msg),
+		message:     "got an internal error",
+	}
 }

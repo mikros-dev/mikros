@@ -20,7 +20,7 @@ type fakeErrorBuilder struct {
 	err error
 }
 
-func (f *fakeErrorAPI) RPC(err error, _ string) errors_api.Error {
+func (f *fakeErrorAPI) RPC(err error, _ string) errors_api.Value {
 	f.last = &fakeErrorBuilder{
 		err: err,
 	}
@@ -28,7 +28,7 @@ func (f *fakeErrorAPI) RPC(err error, _ string) errors_api.Error {
 	return f.last
 }
 
-func (f *fakeErrorAPI) InvalidArgument(err error) errors_api.Error {
+func (f *fakeErrorAPI) InvalidArgument(err error) errors_api.Value {
 	f.last = &fakeErrorBuilder{
 		err: err,
 	}
@@ -36,7 +36,7 @@ func (f *fakeErrorAPI) InvalidArgument(err error) errors_api.Error {
 	return f.last
 }
 
-func (f *fakeErrorAPI) FailedPrecondition(message string) errors_api.Error {
+func (f *fakeErrorAPI) FailedPrecondition(message string) errors_api.Value {
 	f.last = &fakeErrorBuilder{
 		err: errors.New(message),
 	}
@@ -44,7 +44,7 @@ func (f *fakeErrorAPI) FailedPrecondition(message string) errors_api.Error {
 	return f.last
 }
 
-func (f *fakeErrorAPI) NotFound() errors_api.Error {
+func (f *fakeErrorAPI) NotFound() errors_api.Value {
 	f.last = &fakeErrorBuilder{
 		err: errors.New("not found"),
 	}
@@ -52,7 +52,7 @@ func (f *fakeErrorAPI) NotFound() errors_api.Error {
 	return f.last
 }
 
-func (f *fakeErrorAPI) Internal(err error) errors_api.Error {
+func (f *fakeErrorAPI) Internal(err error) errors_api.Value {
 	f.last = &fakeErrorBuilder{
 		err: err,
 	}
@@ -60,7 +60,7 @@ func (f *fakeErrorAPI) Internal(err error) errors_api.Error {
 	return f.last
 }
 
-func (f *fakeErrorAPI) PermissionDenied() errors_api.Error {
+func (f *fakeErrorAPI) PermissionDenied() errors_api.Value {
 	f.last = &fakeErrorBuilder{
 		err: errors.New("permission denied"),
 	}
@@ -68,28 +68,16 @@ func (f *fakeErrorAPI) PermissionDenied() errors_api.Error {
 	return f.last
 }
 
-func (f *fakeErrorAPI) Custom(msg string) errors_api.Error {
-	f.last = &fakeErrorBuilder{
-		err: errors.New(msg),
-	}
-
-	return f.last
-}
-
-func (f *fakeErrorBuilder) WithCode(_ errors_api.Code) errors_api.Error {
+func (f *fakeErrorBuilder) WithCode(_ errors_api.Code) errors_api.Value {
 	return f
 }
 
-func (f *fakeErrorBuilder) WithAttributes(_ ...logger_api.Attribute) errors_api.Error {
+func (f *fakeErrorBuilder) WithAttributes(_ ...logger_api.Attribute) errors_api.Value {
 	return f
 }
 
-func (f *fakeErrorBuilder) Submit(_ context.Context) error {
-	return f.err
-}
-
-func (f *fakeErrorBuilder) Kind() string {
-	return "InternalError"
+func (f *fakeErrorBuilder) Error() string {
+	return f.err.Error()
 }
 
 func TestEntryUpdateInfoAndHelpers(t *testing.T) {

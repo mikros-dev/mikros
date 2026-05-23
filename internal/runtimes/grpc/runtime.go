@@ -7,16 +7,19 @@ import (
 	"net"
 
 	"github.com/go-playground/validator/v10"
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/status"
 
 	errors_api "github.com/mikros-dev/mikros/apis/features/errors"
 	logger_api "github.com/mikros-dev/mikros/apis/features/logger"
 	"github.com/mikros-dev/mikros/components/definition"
+	merrors "github.com/mikros-dev/mikros/components/errors"
+	mierrors "github.com/mikros-dev/mikros/internal/components/errors"
 	"github.com/mikros-dev/mikros/components/logger"
 	"github.com/mikros-dev/mikros/components/options"
 	"github.com/mikros-dev/mikros/components/plugin"
@@ -29,7 +32,8 @@ type Server struct {
 	server           *grpc.Server
 	listener         net.Listener
 	health           *health.Server
-	errors           errors_api.ErrorAPI
+	errors           errors_api.Errors
+	logger           logger_api.API
 	protoServiceDesc *grpc.ServiceDesc
 }
 
@@ -73,6 +77,7 @@ func (s *Server) Initialize(_ context.Context, opt *plugin.RuntimeOptions) error
 		return fmt.Errorf("could not listen to service port: %w", err)
 	}
 
+	s.logger = opt.Logger
 	s.errors = opt.Errors
 	s.listener = listener
 	s.protoServiceDesc = svc.ProtoServiceDescription
@@ -81,10 +86,9 @@ func (s *Server) Initialize(_ context.Context, opt *plugin.RuntimeOptions) error
 	// Starts the gRPC server
 	s.server = grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
-			grpc_middleware.ChainUnaryServer(
-				grpc_recovery.UnaryServerInterceptor(
-					grpc_recovery.WithRecoveryHandlerContext(s.recoverFromGrpcPanic),
-				),
+			s.handleGRPCError,
+			grpc_recovery.UnaryServerInterceptor(
+				grpc_recovery.WithRecoveryHandler(s.recoverFromGrpcPanic),
 			),
 		),
 	)
@@ -95,10 +99,6 @@ func (s *Server) Initialize(_ context.Context, opt *plugin.RuntimeOptions) error
 	s.health = healthSrv
 
 	return nil
-}
-
-func (s *Server) recoverFromGrpcPanic(ctx context.Context, p interface{}) error {
-	return s.errors.Internal(fmt.Errorf("%v", p)).Submit(ctx)
 }
 
 func (s *Server) validate(opt *plugin.RuntimeOptions) error {
@@ -119,6 +119,58 @@ func (s *Server) validate(opt *plugin.RuntimeOptions) error {
 	}
 
 	return nil
+}
+
+func (s *Server) recoverFromGrpcPanic(p interface{}) error {
+	return s.errors.Internal(fmt.Errorf("%v", p))
+}
+
+func (s *Server) handleGRPCError(
+	ctx context.Context,
+	req interface{},
+	info *grpc.UnaryServerInfo,
+	handler grpc.UnaryHandler,
+) (interface{}, error) {
+	resp, err := handler(ctx, req)
+	if err == nil {
+		return resp, nil
+	}
+
+	// Logs the RPC error for the current application.
+	if e, ok := merrors.From(err); ok {
+		fields := []logger_api.Attribute{
+			logger.String("grpc.method", info.FullMethod),
+			logger.String("error.kind", e.Kind().String()),
+		}
+		if e.Cause() != nil {
+			fields = append(fields, logger.String("error.message", e.Cause().Error()))
+		}
+
+		s.logger.Error(ctx, e.Message(), append(fields, e.Attributes()...)...)
+	}
+
+	// Try to convert the error to a gRPC status.
+	st, ok, err := mierrors.ToGRPCStatus(err)
+	if ok {
+		if err == nil {
+			return resp, st.Err()
+		}
+
+		s.logger.Error(ctx, "failed to encode gRPC error", logger.Error(err))
+		return resp, status.Error(codes.Internal, "internal server error")
+	}
+
+	// If is not our error, return it as is.
+	if _, ok := status.FromError(err); ok {
+		return resp, err
+	}
+
+	s.logger.Error(ctx, "unhandled gRPC error",
+		logger.String("grpc.method", info.FullMethod),
+		logger.Error(err),
+	)
+
+	return resp, status.Error(codes.Internal, "internal server error")
 }
 
 // Stop stops the gRPC server.

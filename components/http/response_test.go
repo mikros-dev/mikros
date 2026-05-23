@@ -83,42 +83,39 @@ func TestProblem(t *testing.T) {
 	})
 
 	t.Run("mikros errors", func(t *testing.T) {
-		factory := merrors.NewFactory(merrors.FactoryOptions{
+		factory := merrors.NewBuilder(merrors.BuilderOptions{
 			ServiceName: "example",
 		})
 
 		rec := httptest.NewRecorder()
-		e := factory.FailedPrecondition("failed precondition").Submit(ctx)
+		e := factory.FailedPrecondition("failed precondition")
 		Problem(ctx, rec, e)
 		assert.Equal(t, http.StatusPreconditionFailed, rec.Code)
 
 		rec = httptest.NewRecorder()
-		e = factory.Custom("custom error").Submit(ctx)
+		e = factory.Internal(errors.New("internal error"))
 		Problem(ctx, rec, e)
 		assert.Equal(t, http.StatusInternalServerError, rec.Code)
 
 		rec = httptest.NewRecorder()
-		e = factory.Internal(errors.New("internal error")).Submit(ctx)
+		e = factory.RPC(errors.New("rpc error"), "example")
 		Problem(ctx, rec, e)
 		assert.Equal(t, http.StatusInternalServerError, rec.Code)
 
 		rec = httptest.NewRecorder()
-		e = factory.RPC(errors.New("rpc error"), "example").Submit(ctx)
-		Problem(ctx, rec, e)
-		assert.Equal(t, http.StatusInternalServerError, rec.Code)
-
-		rec = httptest.NewRecorder()
-		e = factory.NotFound().Submit(ctx)
+		e = factory.NotFound()
 		Problem(ctx, rec, e)
 		assert.Equal(t, http.StatusNotFound, rec.Code)
 
 		rec = httptest.NewRecorder()
-		e = factory.InvalidArgument(errors.New("invalid argument")).Submit(ctx)
+		e = factory.InvalidArgument(errors.New("invalid argument"))
 		Problem(ctx, rec, e)
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		assert.Contains(t, rec.Body.String(), `"kind":"ValidationError"`)
+		assert.Contains(t, rec.Body.String(), `"cause":"invalid argument"`)
 
 		rec = httptest.NewRecorder()
-		e = factory.PermissionDenied().WithCode(&code{Code: 9951}).WithAttributes(logger.Any("teste", "teste")).Submit(ctx)
+		e = factory.PermissionDenied().WithCode(&code{Code: 9951}).WithAttributes(logger.Any("teste", "teste"))
 		Problem(ctx, rec, e)
 		assert.Equal(t, http.StatusForbidden, rec.Code)
 	})

@@ -11,7 +11,7 @@ import (
 // Client is the errors feature client.
 type Client struct {
 	plugin.Entry
-	errors errors_api.ErrorAPI
+	errors errors_api.Errors
 }
 
 // New creates the errors feature.
