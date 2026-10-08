@@ -12,6 +12,12 @@ type IntegrationSet struct {
 	orderedIntegrations []*registeredIntegration
 }
 
+// IntegrationSetIterator provides ordered iteration over integrations.
+type IntegrationSetIterator struct {
+	index        int
+	integrations []*registeredIntegration
+}
+
 type registeredIntegration struct {
 	name        string
 	integration Integration
@@ -115,6 +121,11 @@ func (s *IntegrationSet) Count() int {
 	return len(s.integrations)
 }
 
+// Iterator returns an iterator that follows registration order.
+func (s *IntegrationSet) Iterator() *IntegrationSetIterator {
+	return &IntegrationSetIterator{integrations: s.orderedIntegrations}
+}
+
 // Append adds all registered integrations from the given IntegrationSet into
 // the current IntegrationSet, maintaining their order.
 func (s *IntegrationSet) Append(integrations *IntegrationSet) {
@@ -152,4 +163,15 @@ func (s *IntegrationSet) CleanupAll(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// Next retrieves the next integration.
+func (i *IntegrationSetIterator) Next() (Integration, bool) {
+	if i.index >= len(i.integrations) {
+		return nil, false
+	}
+
+	integration := i.integrations[i.index].integration
+	i.index++
+	return integration, true
 }

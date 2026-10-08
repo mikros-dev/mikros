@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"maps"
 	"os"
 	"os/signal"
 	"reflect"
@@ -135,9 +136,7 @@ func initLogger(defs *definition.Definitions, envs *env.ServiceEnvs) (*mlogger.L
 		"service.env":     deploy.String(),
 		"service.product": defs.Product,
 	}
-	for k, v := range defs.Log.Attributes {
-		attributes[k] = v
-	}
+	maps.Copy(attributes, defs.Log.Attributes)
 
 	// Initialize the service logger system.
 	serviceLogger := mlogger.New(mlogger.Options{
@@ -246,6 +245,19 @@ func (s *Service) postProcessDefinitions(srv interface{}) error {
 		}
 	}
 
+	// Load definitions from external integrations.
+	integrationIterator := s.registeredIntegrations.Iterator()
+	for p, next := integrationIterator.Next(); next; p, next = integrationIterator.Next() {
+		if cfg, ok := p.(plugin.IntegrationSettings); ok {
+			defs, err := cfg.Definitions(s.definitions.Path())
+			if err != nil {
+				return err
+			}
+
+			s.definitions.AddExternalFeatureDefinitions(p.Name(), defs)
+		}
+	}
+
 	// Load definitions from all service TOML types and let them available.
 	for _, svc := range s.registeredRuntimes.Runtimes() {
 		if d, ok := svc.(plugin.RuntimeSettings); ok {
@@ -292,7 +304,11 @@ func (s *Service) initializeFeatures(ctx context.Context, srv interface{}) error
 	}
 
 	// Initialize registered Features
-	if err := s.registeredFeatures.InitializeAll(ctx, initializeOptions); err != nil {
+	if err := s.registeredFeatures.InitializeAllWithDeclarations(
+		ctx,
+		initializeOptions,
+		featureDeclarations(srv),
+	); err != nil {
 		return err
 	}
 
@@ -303,6 +319,28 @@ func (s *Service) initializeFeatures(ctx context.Context, srv interface{}) error
 
 	// Load tagged Features into the service struct
 	return s.loadTaggedFeatures(ctx, srv)
+}
+
+func featureDeclarations(srv interface{}) []plugin.FeatureDeclaration {
+	typeOf := reflect.TypeOf(srv)
+	if typeOf == nil || typeOf.Kind() != reflect.Ptr || typeOf.Elem().Kind() != reflect.Struct {
+		return nil
+	}
+
+	var declarations []plugin.FeatureDeclaration
+	for i := 0; i < typeOf.Elem().NumField(); i++ {
+		field := typeOf.Elem().Field(i)
+		tag := tags.ParseTag(field.Tag)
+		if tag == nil || !tag.IsFeature {
+			continue
+		}
+		declarations = append(declarations, plugin.FeatureDeclaration{
+			FieldName: field.Name,
+			APIType:   field.Type,
+			Tags:      field.Tag,
+		})
+	}
+	return declarations
 }
 
 func (s *Service) loadTaggedFeatures(ctx context.Context, srv interface{}) error {
@@ -320,8 +358,14 @@ func (s *Service) loadTaggedFeatures(ctx context.Context, srv interface{}) error
 
 		if valueOf.Elem().Field(i).CanSet() {
 			f := reflect.New(typeField.Type).Elem()
-			if err := s.Feature(ctx, f.Addr().Interface()); err != nil {
-				return err
+			if feature, ok := s.registeredFeatures.FeatureForField(typeField.Name); ok {
+				if !setFeatureAPI(f.Addr().Interface(), feature) {
+					return fmt.Errorf("feature instance for field '%s' does not implement %v", typeField.Name, typeField.Type)
+				}
+			} else {
+				if err := s.Feature(ctx, f.Addr().Interface()); err != nil {
+					return err
+				}
 			}
 			valueOf.Elem().Field(i).Set(f)
 		}
@@ -799,7 +843,7 @@ func (s *Service) tags() map[string]string {
 
 // Feature is the mechanism that allows a service get access to feature API.
 func (s *Service) Feature(_ context.Context, target interface{}) error {
-	if reflect.TypeOf(target).Kind() != reflect.Ptr {
+	if reflect.TypeOf(target).Kind() != reflect.Pointer {
 		return s.errors.Internal(errors.New("requested target API must be a pointer"))
 	}
 
@@ -810,28 +854,30 @@ func (s *Service) Feature(_ context.Context, target interface{}) error {
 			break
 		}
 
-		f := reflect.ValueOf(feature)
-		if externalAPI, ok := feature.(plugin.FeatureExternalAPI); ok {
-			// If the feature has implemented the plugin.FeatureExternalAPI,
-			// we give priority to it, trying to check if its returned
-			// interface{} has the desired target interface. This way, we let the
-			// feature decide if it is going to implement its public interface
-			// itself or if it will return something that implements.
-			f = reflect.ValueOf(externalAPI.ServiceAPI())
-		}
-
-		var (
-			featureType = f.Type()
-			api         = reflect.TypeOf(target).Elem()
-		)
-
-		if im := featureType.Implements(api); im {
-			reflect.ValueOf(target).Elem().Set(f)
+		if setFeatureAPI(target, feature) {
 			return nil
 		}
 	}
 
 	return s.errors.Internal(errors.New("could not find feature that supports this requested API"))
+}
+
+func setFeatureAPI(target interface{}, feature plugin.Feature) bool {
+	value := reflect.ValueOf(feature)
+	if externalAPI, ok := feature.(plugin.FeatureExternalAPI); ok {
+		value = reflect.ValueOf(externalAPI.ServiceAPI())
+	}
+	if !value.IsValid() {
+		return false
+	}
+
+	api := reflect.TypeOf(target).Elem()
+	if !value.Type().Implements(api) {
+		return false
+	}
+
+	reflect.ValueOf(target).Elem().Set(value)
+	return true
 }
 
 // Env gives access to the framework environment variables public API.
