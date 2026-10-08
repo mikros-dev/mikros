@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"context"
+	"reflect"
 
 	env_api "github.com/mikros-dev/mikros/apis/features/env"
 	errors_api "github.com/mikros-dev/mikros/apis/features/errors"
@@ -98,6 +99,18 @@ type FeatureInternalAPI interface {
 	FrameworkAPI() interface{}
 }
 
+// FeatureInstantiator is an optional behavior for features that support one
+// independently initialized instance per tagged service field.
+type FeatureInstantiator interface {
+	// NewInstance must return a new, independent feature instance carrying any
+	// configuration applied to the registered feature before initialization.
+	NewInstance() Feature
+
+	// ServiceAPIType returns the exact service interface type supported by the
+	// feature. Implementations can use TypeOf to build this value.
+	ServiceAPIType() reflect.Type
+}
+
 // FeatureTester is a behavior that a feature should implement to be mocked
 // in a unit test.
 type FeatureTester interface {
@@ -133,4 +146,20 @@ type InitializeOptions struct {
 	ServiceContext *mcontext.ServiceContext
 	Dependencies   map[string]Feature
 	FeatureInputs  map[string]interface{}
+
+	// Declaration is set when initializing a feature instance requested by a
+	// tagged service field. It remains nil for singleton initialization.
+	Declaration *FeatureDeclaration
+}
+
+// FeatureDeclaration describes a service field that requests a feature.
+type FeatureDeclaration struct {
+	FieldName string
+	APIType   reflect.Type
+	Tags      reflect.StructTag
+}
+
+// TypeOf returns the reflect.Type represented by T.
+func TypeOf[T any]() reflect.Type {
+	return reflect.TypeFor[T]()
 }

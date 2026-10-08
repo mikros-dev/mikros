@@ -3,6 +3,7 @@ package plugin
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -71,6 +72,36 @@ type fakeFeature struct {
 	startErr      error
 	cleanupErr    error
 	lastDeps      map[string]Feature
+}
+
+type fakeServiceAPI interface {
+	ID() string
+}
+
+type multiFeature struct {
+	fakeFeature
+	id          string
+	declaration *FeatureDeclaration
+}
+
+func (f *multiFeature) Initialize(ctx context.Context, options *InitializeOptions) error {
+	f.declaration = options.Declaration
+	return f.fakeFeature.Initialize(ctx, options)
+}
+
+func (f *multiFeature) ID() string {
+	return f.id
+}
+
+func (f *multiFeature) NewInstance() Feature {
+	return &multiFeature{
+		fakeFeature: fakeFeature{allow: true},
+		id:          "created",
+	}
+}
+
+func (f *multiFeature) ServiceAPIType() reflect.Type {
+	return TypeOf[fakeServiceAPI]()
 }
 
 func (f *fakeFeature) CanBeInitialized(_ *CanBeInitializedOptions) bool {
@@ -215,6 +246,73 @@ func TestFeatureSetInitializeAllStopsOnError(t *testing.T) {
 	require.Error(t, err)
 	assert.EqualError(t, err, "init failed")
 	assert.False(t, after.initCalled)
+}
+
+func TestFeatureSetInitializeAllWithDeclarations(t *testing.T) {
+	set := NewFeatureSet()
+	prototype := &multiFeature{
+		fakeFeature: fakeFeature{allow: true},
+		id:          "prototype",
+	}
+	set.Register("database", prototype)
+
+	declarations := []FeatureDeclaration{
+		{
+			FieldName: "Database",
+			APIType:   TypeOf[fakeServiceAPI](),
+			Tags:      `mikros:"feature" mikros_ext:"db_name=primary"`,
+		},
+		{
+			FieldName: "DatabaseAudit",
+			APIType:   TypeOf[fakeServiceAPI](),
+			Tags:      `mikros:"feature" mikros_ext:"db_name=audit"`,
+		},
+	}
+
+	err := set.InitializeAllWithDeclarations(context.Background(), &InitializeOptions{
+		Env:         fakeEnv{},
+		Definitions: &definition.Definitions{},
+	}, declarations)
+	require.NoError(t, err)
+
+	primary, ok := set.FeatureForField("Database")
+	require.True(t, ok)
+	audit, ok := set.FeatureForField("DatabaseAudit")
+	require.True(t, ok)
+	assert.Same(t, prototype, primary)
+	assert.NotSame(t, primary, audit)
+	assert.Equal(t, "db_name=primary", primary.(*multiFeature).declaration.Tags.Get("mikros_ext"))
+	assert.Equal(t, "db_name=audit", audit.(*multiFeature).declaration.Tags.Get("mikros_ext"))
+	assert.Equal(t, "database", audit.Name())
+
+	require.NoError(t, set.StartAll(context.Background(), struct{}{}))
+	require.NoError(t, set.CleanupAll(context.Background()))
+	assert.True(t, primary.(*multiFeature).startCalled)
+	assert.True(t, audit.(*multiFeature).startCalled)
+	assert.True(t, primary.(*multiFeature).cleanupCalled)
+	assert.True(t, audit.(*multiFeature).cleanupCalled)
+
+	iterator := set.Iterator()
+	got, ok := iterator.Next()
+	require.True(t, ok)
+	assert.Same(t, primary, got)
+	got, ok = iterator.Next()
+	require.True(t, ok)
+	assert.Same(t, audit, got)
+	_, ok = iterator.Next()
+	assert.False(t, ok)
+}
+
+func TestFeatureSetRejectsDuplicateInstantiators(t *testing.T) {
+	set := NewFeatureSet()
+	set.Register("first", &multiFeature{fakeFeature: fakeFeature{allow: true}})
+	set.Register("second", &multiFeature{fakeFeature: fakeFeature{allow: true}})
+
+	err := set.InitializeAllWithDeclarations(context.Background(), &InitializeOptions{
+		Env:         fakeEnv{},
+		Definitions: &definition.Definitions{},
+	}, nil)
+	require.EqualError(t, err, "features 'first' and 'second' both instantiate API plugin.fakeServiceAPI")
 }
 
 func TestFeatureSetStartAllAndCleanupAll(t *testing.T) {

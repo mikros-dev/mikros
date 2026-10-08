@@ -199,3 +199,21 @@ func TestIntegrationSetAppend(t *testing.T) {
 	left.Append(right)
 	assert.Equal(t, 2, left.Count())
 }
+
+func TestIntegrationSetIterator(t *testing.T) {
+	set := NewIntegrationSet()
+	first := &fakeIntegration{}
+	second := &fakeIntegration{}
+	set.Register("first", first)
+	set.Register("second", second)
+
+	iterator := set.Iterator()
+	got, ok := iterator.Next()
+	require.True(t, ok)
+	assert.Same(t, first, got)
+	got, ok = iterator.Next()
+	require.True(t, ok)
+	assert.Same(t, second, got)
+	_, ok = iterator.Next()
+	assert.False(t, ok)
+}

@@ -2,6 +2,8 @@ package plugin
 
 import (
 	"context"
+
+	"github.com/mikros-dev/mikros/components/definition"
 )
 
 // Integration is a set of methods that all framework integrations, internal or
@@ -49,4 +51,10 @@ type IntegrationController interface {
 	// Cleanup should free all resources allocated by the plugin or stop any
 	// internal process.
 	Cleanup(ctx context.Context) error
+}
+
+// IntegrationSettings is an optional behavior for integrations that load
+// custom settings from service.toml.
+type IntegrationSettings interface {
+	Definitions(path string) (definition.ExternalFeatureEntry, error)
 }
