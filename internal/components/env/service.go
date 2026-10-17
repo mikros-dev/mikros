@@ -11,7 +11,9 @@ import (
 )
 
 const (
-	stringEnvNotation = "@env"
+	stringEnvNotation                = "@env"
+	grpcMaxReceiveMessageSizeEnv     = "MIKROS_GRPC_MAX_RECEIVE_MESSAGE_SIZE_BYTES"
+	grpcDefaultMaxReceiveMessageSize = 4 * 1024 * 1024
 )
 
 // ServiceEnvs is the object that will allow all internal (and external) mikros
@@ -30,6 +32,9 @@ func NewServiceEnvs(defs *definition.Definitions) (*ServiceEnvs, error) {
 	var envs GlobalEnvs
 	if err := env.Load(defs.ServiceName(), &envs); err != nil {
 		return nil, err
+	}
+	if envs.GrpcMaxReceiveMessageSize <= 0 {
+		return nil, fmt.Errorf("environment variable %q must be greater than zero", grpcMaxReceiveMessageSizeEnv)
 	}
 
 	envs.postLoad()
@@ -103,6 +108,10 @@ func (s *ServiceEnvs) CoupledPort() int32 {
 
 func (s *ServiceEnvs) GrpcPort() int32 {
 	return s.envs.GrpcPort
+}
+
+func (s *ServiceEnvs) GrpcMaxReceiveMessageSize() int {
+	return s.envs.GrpcMaxReceiveMessageSize
 }
 
 func (s *ServiceEnvs) HttpPort() int32 {

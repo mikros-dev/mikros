@@ -396,19 +396,20 @@ func (s *Service) initializeRegisteredServices(ctx context.Context, srv interfac
 		}
 
 		if err := svc.Initialize(ctx, &plugin.ServiceOptions{
-			Port:           getServicePort(servicePort, serviceType.String()),
-			Type:           serviceType,
-			Name:           s.definitions.ServiceName(),
-			Product:        s.definitions.Product,
-			Logger:         s.logger,
-			Errors:         s.errors,
-			ServiceContext: s.ctx,
-			Tags:           s.tags(),
-			Service:        opt,
-			Definitions:    s.definitions,
-			Features:       s.features,
-			ServiceHandler: srv,
-			Env:            s.envs,
+			Port:                      getServicePort(servicePort, serviceType.String()),
+			Type:                      serviceType,
+			Name:                      s.definitions.ServiceName(),
+			Product:                   s.definitions.Product,
+			Logger:                    s.logger,
+			Errors:                    s.errors,
+			ServiceContext:            s.ctx,
+			Tags:                      s.tags(),
+			Service:                   opt,
+			Definitions:               s.definitions,
+			Features:                  s.features,
+			ServiceHandler:            srv,
+			Env:                       s.envs,
+			GrpcMaxReceiveMessageSize: s.envs.GrpcMaxReceiveMessageSize(),
 		}); err != nil {
 			return err
 		}
@@ -457,9 +458,10 @@ func (s *Service) coupleClients(srv interface{}) error {
 			// members to these connections.
 
 			cOpts := &mgrpc.ClientConnectionOptions{
-				ServiceName: s.definitions.ServiceName(),
-				ClientName:  client.ServiceName,
-				Context:     s.ctx,
+				ServiceName:           s.definitions.ServiceName(),
+				ClientName:            client.ServiceName,
+				Context:               s.ctx,
+				MaxReceiveMessageSize: s.envs.GrpcMaxReceiveMessageSize(),
 				Connection: mgrpc.ConnectionOptions{
 					Namespace: s.envs.CoupledNamespace(),
 					Port:      s.envs.CoupledPort(),

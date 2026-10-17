@@ -53,17 +53,18 @@ type ServiceSettings interface {
 
 // ServiceOptions gathers all available options to create a service object.
 type ServiceOptions struct {
-	Port           service.ServerPort
-	Type           definition.ServiceType
-	Name           service.Name
-	Product        string
-	Logger         logger_api.LoggerAPI
-	Errors         errors_api.ErrorAPI
-	ServiceContext *mcontext.ServiceContext
-	Tags           map[string]string
-	Service        options.ServiceOptions
-	Definitions    *definition.Definitions
-	Features       *FeatureSet
-	ServiceHandler interface{}
-	Env            env_api.EnvAPI
+	Port                      service.ServerPort
+	Type                      definition.ServiceType
+	Name                      service.Name
+	Product                   string
+	Logger                    logger_api.LoggerAPI
+	Errors                    errors_api.ErrorAPI
+	ServiceContext            *mcontext.ServiceContext
+	Tags                      map[string]string
+	Service                   options.ServiceOptions
+	Definitions               *definition.Definitions
+	Features                  *FeatureSet
+	ServiceHandler            interface{}
+	Env                       env_api.EnvAPI
+	GrpcMaxReceiveMessageSize int
 }

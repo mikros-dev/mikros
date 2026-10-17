@@ -24,12 +24,13 @@ import (
 )
 
 type Server struct {
-	port             service.ServerPort
-	server           *grpc.Server
-	listener         net.Listener
-	health           *health.Server
-	errors           errors_api.ErrorAPI
-	protoServiceDesc *grpc.ServiceDesc
+	port                  service.ServerPort
+	server                *grpc.Server
+	listener              net.Listener
+	health                *health.Server
+	errors                errors_api.ErrorAPI
+	protoServiceDesc      *grpc.ServiceDesc
+	maxReceiveMessageSize int
 }
 
 func New() *Server {
@@ -44,6 +45,7 @@ func (s *Server) Info() []logger_api.Attribute {
 	return []logger_api.Attribute{
 		logger.String("service.address", fmt.Sprintf(":%v", s.port.Int32())),
 		logger.String("service.mode", definition.ServiceType_gRPC.String()),
+		logger.Any("service.grpc_max_receive_message_size_bytes", s.maxReceiveMessageSize),
 	}
 }
 
@@ -77,17 +79,10 @@ func (s *Server) Initialize(_ context.Context, opt *plugin.ServiceOptions) error
 	s.listener = listener
 	s.protoServiceDesc = svc.ProtoServiceDescription
 	s.port = opt.Port
+	s.maxReceiveMessageSize = opt.GrpcMaxReceiveMessageSize
 
 	// Starts the gRPC server
-	s.server = grpc.NewServer(
-		grpc.ChainUnaryInterceptor(
-			grpc_middleware.ChainUnaryServer(
-				grpc_recovery.UnaryServerInterceptor(
-					grpc_recovery.WithRecoveryHandlerContext(s.recoverFromGrpcPanic),
-				),
-			),
-		),
-	)
+	s.server = grpc.NewServer(s.serverOptions()...)
 
 	healthSrv := health.NewServer()
 	healthSrv.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
@@ -95,6 +90,19 @@ func (s *Server) Initialize(_ context.Context, opt *plugin.ServiceOptions) error
 	s.health = healthSrv
 
 	return nil
+}
+
+func (s *Server) serverOptions() []grpc.ServerOption {
+	return []grpc.ServerOption{
+		grpc.MaxRecvMsgSize(s.maxReceiveMessageSize),
+		grpc.ChainUnaryInterceptor(
+			grpc_middleware.ChainUnaryServer(
+				grpc_recovery.UnaryServerInterceptor(
+					grpc_recovery.WithRecoveryHandlerContext(s.recoverFromGrpcPanic),
+				),
+			),
+		),
+	}
 }
 
 func (s *Server) recoverFromGrpcPanic(ctx context.Context, p interface{}) error {
@@ -109,6 +117,7 @@ func (s *Server) validate(opt *plugin.ServiceOptions) error {
 			opt.Logger,
 			opt.Errors,
 			opt.Port,
+			opt.GrpcMaxReceiveMessageSize,
 		}
 	)
 

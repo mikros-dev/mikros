@@ -21,8 +21,11 @@ type GlobalEnvs struct {
 	CoupledNamespace string `env:"MIKROS_COUPLED_NAMESPACE"`
 	CoupledPort      int32  `env:"MIKROS_COUPLED_PORT,default_value=7070"`
 
-	// Default connection ports
-	GrpcPort int32 `env:"MIKROS_GRPC_PORT,default_value=7070"`
+	// gRPC settings
+	GrpcPort                  int32 `env:"MIKROS_GRPC_PORT,default_value=7070"`
+	GrpcMaxReceiveMessageSize int   `env:"MIKROS_GRPC_MAX_RECEIVE_MESSAGE_SIZE_BYTES,default_value=4194304"`
+
+	// HTTP settings
 	HttpPort int32 `env:"MIKROS_HTTP_PORT,default_value=8080"`
 }
 

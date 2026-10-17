@@ -23,6 +23,7 @@ type ClientConnectionOptions struct {
 	Connection            ConnectionOptions
 	AlternativeConnection *ConnectionOptions
 	Tracker               behavior.Tracker
+	MaxReceiveMessageSize int
 }
 
 type ConnectionOptions struct {
@@ -41,14 +42,29 @@ func ClientConnection(options *ClientConnectionOptions) (*grpc.ClientConn, error
 
 	conn, err := grpc.NewClient(
 		address,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithUnaryInterceptor(gRPCClientUnaryInterceptor(options.Context, options.Tracker, options.ServiceName, options.ClientName)),
+		clientDialOptions(options)...,
 	)
 	if err != nil {
 		return nil, err
 	}
 
 	return conn, nil
+}
+
+func clientDialOptions(options *ClientConnectionOptions) []grpc.DialOption {
+	dialOptions := []grpc.DialOption{
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithUnaryInterceptor(gRPCClientUnaryInterceptor(options.Context, options.Tracker, options.ServiceName, options.ClientName)),
+	}
+
+	if options.MaxReceiveMessageSize <= 0 {
+		return dialOptions
+	}
+
+	return append(
+		dialOptions,
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(options.MaxReceiveMessageSize)),
+	)
 }
 
 func getClientConnectionAddress(options *ClientConnectionOptions) string {
